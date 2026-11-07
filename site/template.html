@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股上市公司商业模式拆解 · 上市以来</title>
+<meta name="description" content="按「服务领域 × 货币化引擎 × 付费对象 × 时间」四轴框架，拆解A股上市公司从上市至今的收入结构、定价权与变迁。">
+<style>
+:root{
+  --paper:#faf8f4; --paper-2:#f4f0e8; --paper-3:#ece6da;
+  --ink:#1b1a17; --ink-2:#4b4842; --ink-3:#8b877d; --ink-4:#b3aea2;
+  --line:#e4ded1; --line-2:#d2cab9;
+  --accent:#b4471f; --accent-2:#d4693c; --accent-soft:#f2e3d9;
+  --green:#2f5d5a; --green-soft:#dfe8e6;
+  --gold:#9c7a28; --blue:#3d5a80;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.75;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent);color:#fff}
+a{color:inherit}
+
+/* 顶栏 */
+header{
+  position:sticky;top:0;z-index:50;background:rgba(250,248,244,.94);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.hd{max-width:1360px;margin:0 auto;padding:14px 28px;display:flex;align-items:baseline;gap:22px;flex-wrap:wrap}
+.hd h1{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.hd .sub{font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.hd .stats{margin-left:auto;display:flex;gap:20px;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
+.hd .stats b{color:var(--ink);font-weight:600;font-size:13px;margin-right:3px}
+
+/* 布局 */
+.main{max-width:1360px;margin:0 auto;display:grid;grid-template-columns:296px 1fr;gap:0;min-height:calc(100vh - 58px)}
+.side{border-right:1px solid var(--line);padding:20px 0 40px;position:sticky;top:58px;align-self:start;max-height:calc(100vh - 58px);display:flex;flex-direction:column}
+.search{margin:0 16px 12px;position:relative}
+.search input{
+  width:100%;padding:8px 10px 8px 30px;border:1px solid var(--line-2);background:#fff;
+  font-family:inherit;font-size:12.5px;color:var(--ink);outline:none;border-radius:2px;
+}
+.search input:focus{border-color:var(--ink-3)}
+.search::before{content:"⌕";position:absolute;left:10px;top:6px;color:var(--ink-4);font-size:14px}
+.filters{display:flex;flex-wrap:wrap;gap:5px;margin:0 16px 14px}
+.chip{
+  font-size:10.5px;padding:3px 8px;border:1px solid var(--line-2);background:transparent;
+  color:var(--ink-3);cursor:pointer;font-family:inherit;border-radius:2px;transition:.15s;
+}
+.chip:hover{border-color:var(--ink-3);color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.clist{overflow-y:auto;flex:1;padding:0 8px}
+.citem{
+  display:block;width:100%;text-align:left;background:transparent;border:none;border-left:2px solid transparent;
+  padding:9px 10px;cursor:pointer;font-family:inherit;transition:.15s;
+}
+.citem:hover{background:var(--paper-2)}
+.citem.on{background:var(--paper-3);border-left-color:var(--accent)}
+.citem .n{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-.01em;display:flex;justify-content:space-between;gap:6px}
+.citem .m{font-size:10.5px;color:var(--ink-4);font-family:var(--mono);margin-top:2px;display:flex;justify-content:space-between}
+.citem .v{font-size:11px;color:var(--ink-3);margin-top:5px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* 内容区 */
+.detail{padding:34px 40px 80px;min-width:0}
+.empty{padding:120px 40px;color:var(--ink-3);font-size:13px}
+
+.dhead{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:26px}
+.dhead .eyebrow{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-family:var(--mono)}
+.dhead h2{font-size:clamp(24px,3vw,34px);line-height:1.25;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+.dhead .meta{font-size:12px;color:var(--ink-3);display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono)}
+.dhead .verdict{font-size:15.5px;line-height:1.8;color:var(--ink-2);margin-top:16px;max-width:46em}
+.dhead .verdict b{color:var(--accent)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:32px}
+.kpi{padding:16px 18px 16px 0;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:none}
+.kpi .k{font-size:10px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase;margin-bottom:6px}
+.kpi .v{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.kpi .v small{font-size:.5em;color:var(--ink-3);margin-left:2px;font-weight:400}
+.kpi .s{font-size:10.5px;color:var(--ink-4);margin-top:4px;font-family:var(--mono)}
+
+.block{margin-bottom:34px}
+.block h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.block h3::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.chart{background:#fff;border:1px solid var(--line);padding:18px 16px 10px}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:16px;font-size:11px;color:var(--ink-3);margin-top:8px;padding-left:4px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;display:block}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.box{background:#fff;border:1px solid var(--line);padding:20px 22px}
+.box .lab{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.box p{font-size:13px;color:var(--ink-2);line-height:1.85}
+.box .kv{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-2)}
+
+.mix{margin-top:6px}
+.mix-row{display:grid;grid-template-columns:132px 1fr 46px;align-items:center;gap:12px;margin-bottom:7px;font-size:12px}
+.mix-row .nm{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mix-row .bar{height:8px;background:var(--paper-3)}
+.mix-row .bar i{display:block;height:100%;background:var(--accent-2);opacity:.8}
+.mix-row .pc{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:right}
+
+table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+th{text-align:right;font-size:9.5px;letter-spacing:.08em;color:var(--ink-3);font-weight:500;padding:0 8px 8px 0;border-bottom:1px solid var(--line-2);text-transform:uppercase}
+th:first-child{text-align:left}
+td{padding:6px 8px 6px 0;text-align:right;border-bottom:1px solid var(--line);color:var(--ink-2)}
+td:first-child{text-align:left;color:var(--ink-3)}
+tr:last-child td{border-bottom:none}
+td.neg{color:var(--accent)}
+
+.flags{list-style:none}
+.flags li{position:relative;padding-left:16px;font-size:12.5px;color:var(--ink-2);line-height:1.8;margin-bottom:6px}
+.flags li::before{content:"—";position:absolute;left:0;color:var(--accent)}
+.flags li.ok::before{color:var(--green)}
+
+.foot{border-top:1px solid var(--line);margin-top:40px;padding-top:16px;font-size:11px;color:var(--ink-4);line-height:1.9}
+
+@media(max-width:960px){
+  .main{grid-template-columns:1fr}
+  .side{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--line);padding-bottom:14px}
+  .clist{max-height:210px}
+  .detail{padding:24px 20px 60px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi:nth-child(2){border-right:none}
+  .kpi:nth-child(1),.kpi:nth-child(2){border-bottom:1px solid var(--line)}
+  .grid2{grid-template-columns:1fr}
+  .hd{padding:12px 20px}
+  .hd .stats{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hd">
+    <h1>A股上市公司 · 商业模式拆解</h1>
+    <div class="sub">服务领域 × 货币化引擎 × 付费对象 × 时间</div>
+    <div class="stats" id="hdStats"></div>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="side">
+    <div class="search"><input id="q" type="text" placeholder="搜索公司名 / 代码 / 行业"></div>
+    <div class="filters" id="filters"></div>
+    <div class="clist" id="clist"></div>
+  </aside>
+  <main class="detail" id="detail"></main>
+</div>
+
+<script>
+const DATA = __DATA_JSON__;
+const META = __META_JSON__;
+
+const $ = (s) => document.querySelector(s);
+const fmt = (x, d=0) => (x==null || isNaN(x)) ? "—" : x.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+let state = { q:"", ind:"全部", code: DATA.companies[0]?.code };
+
+/* 顶栏统计 */
+(function(){
+  const cs = DATA.companies;
+  const rev = cs.reduce((s,c)=> s + (c.years.at(-1)?.rev || 0), 0);
+  $("#hdStats").innerHTML = `
+    <div><b>${cs.length}</b>家公司</div>
+    <div><b>${new Set(cs.map(c=>c.industry)).size}</b>个行业</div>
+    <div><b>${cs.reduce((s,c)=>s+c.years.length,0)}</b>个财年</div>
+    <div><b>${fmt(rev)}</b>亿元营收合计</div>`;
+})();
+
+/* 行业筛选 */
+(function(){
+  const inds = ["全部", ...new Set(DATA.companies.map(c=>c.industry))];
+  $("#filters").innerHTML = inds.map(i=>`<button class="chip${i===state.ind?' on':''}" data-i="${i}">${i}</button>`).join("");
+  $("#filters").onclick = e => {
+    const b = e.target.closest(".chip"); if(!b) return;
+    state.ind = b.dataset.i;
+    document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("on", x===b));
+    renderList();
+  };
+})();
+
+function match(c){
+  const q = state.q.trim().toLowerCase();
+  const okInd = state.ind === "全部" || c.industry === state.ind;
+  const okQ = !q || (c.name+c.code+c.industry+(c.sub||"")+c.verdict).toLowerCase().includes(q);
+  return okInd && okQ;
+}
+
+function renderList(){
+  const cs = DATA.companies.filter(match);
+  $("#clist").innerHTML = cs.length ? cs.map(c=>`
+    <button class="citem${c.code===state.code?' on':''}" data-c="${c.code}">
+      <div class="n">${c.name}<span style="font-family:var(--mono);font-size:10px;color:var(--ink-4);font-weight:400">${c.code.split(".")[0]}</span></div>
+      <div class="m"><span>${c.industry}</span><span>${c.coverage[0]}–${c.coverage[1]}</span></div>
+      <div class="v">${c.verdict.replace(/<\/?b>/g,"")}</div>
+    </button>`).join("") : `<div style="padding:24px 12px;color:var(--ink-4);font-size:12px">没有匹配的公司</div>`;
+}
+
+$("#clist").onclick = e => {
+  const b = e.target.closest(".citem"); if(!b) return;
+  state.code = b.dataset.c;
+  renderList(); renderDetail();
+  window.scrollTo({top:0,behavior:"smooth"});
+};
+$("#q").oninput = e => { state.q = e.target.value; renderList(); };
+
+/* 图表：营收柱 + 净利线 */
+function chart(c){
+  const ys = c.years;
+  const W = 720, H = 260, P = {l:46, r:14, t:14, b:26};
+  const iw = W-P.l-P.r, ih = H-P.t-P.b;
+  const maxRev = Math.max(...ys.map(d=>d.rev), 1);
+  const maxNp = Math.max(...ys.map(d=>Math.abs(d.np)), 1);
+  const maxY = maxRev;
+  const bw = iw/ys.length;
+  const x = i => P.l + bw*i;
+  const yR = v => P.t + ih - (v/maxY)*ih;
+  const zero = P.t + ih - (0)*ih;
+
+  let g = "";
+  // 网格
+  for(let k=0;k<=4;k++){
+    const v = maxY*k/4, yy = yR(v);
+    g += `<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="#e4ded1" stroke-width="1"/>`;
+    g += `<text x="${P.l-8}" y="${yy+3.5}" text-anchor="end" font-size="9" fill="#b3aea2" font-family="ui-monospace,monospace">${v>=1000?(v/1000).toFixed(1)+'k':Math.round(v)}</text>`;
+  }
+  // 柱
+  ys.forEach((d,i)=>{
+    const h = Math.max(zero - yR(d.rev), 1);
+    g += `<rect x="${x(i)+bw*0.18}" y="${yR(d.rev)}" width="${bw*0.64}" height="${h}" fill="#e0d6c6"/>`;
+  });
+  // 净利线（按自身量级缩放，避免被营收压平）
+  const pts = ys.map((d,i)=>{
+    const yy = P.t + ih - (d.np/maxNp)*ih*0.62;
+    return [x(i)+bw/2, yy];
+  });
+  g += `<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#b4471f" stroke-width="2"/>`;
+  pts.forEach((p,i)=>{
+    const d = ys[i];
+    g += `<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="${d.np<0?'#b4471f':'#faf8f4'}" stroke="#b4471f" stroke-width="1.6"><title>${d.y} 净利 ${fmt(d.np,1)} 亿元</title></circle>`;
+  });
+  // x 轴
+  const step = ys.length > 18 ? Math.ceil(ys.length/9) : (ys.length>10?2:1);
+  ys.forEach((d,i)=>{
+    if(i%step===0 || i===ys.length-1){
+      g += `<text x="${x(i)+bw/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="#b3aea2" font-family="ui-monospace,monospace">${String(d.y).slice(2)}</text>`;
+    }
+  });
+  g += `<line x1="${P.l}" y1="${zero}" x2="${W-P.r}" y2="${zero}" stroke="#d2cab9" stroke-width="1"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${c.name}营收与净利润">${g}</svg>`;
+}
+
+function renderDetail(){
+  const c = DATA.companies.find(x=>x.code===state.code);
+  if(!c){ $("#detail").innerHTML = `<div class="empty">选择左侧公司查看拆解</div>`; return; }
+  const ys = c.years;
+  const first = ys[0], last = ys.at(-1);
+  const n = last.y - first.y;
+  const cagr = (n>0 && first.rev>0 && last.rev>0) ? (Math.pow(last.rev/first.rev, 1/n)-1)*100 : null;
+  const npCagr = (n>0 && first.np>0 && last.np>0) ? (Math.pow(last.np/first.np, 1/n)-1)*100 : null;
+
+  const mix = (c.mix||[]).map(([k,v])=>`
+    <div class="mix-row"><div class="nm">${k}</div><div class="bar"><i style="width:${v}%"></i></div><div class="pc">${v}%</div></div>`).join("");
+
+  const rows = [...ys].reverse().map(d=>`
+    <tr><td>${d.y}</td><td>${fmt(d.rev,1)}</td><td class="${d.np<0?'neg':''}">${fmt(d.np,1)}</td><td>${d.gm==null?'—':d.gm.toFixed(1)+'%'}</td></tr>`).join("");
+
+  const flags = (c.flags||[]).map(f=>{
+    const ok = f.startsWith("!");
+    return `<li class="${ok?'ok':''}">${ok?f.slice(1):f}</li>`;
+  }).join("");
+
+  $("#detail").innerHTML = `
+    <div class="dhead">
+      <div class="eyebrow">${c.industry}${c.sub?' / '+c.sub:''} · ${c.code}</div>
+      <h2>${c.name}</h2>
+      <div class="meta">
+        <span>上市 ${c.listed}</span>
+        <span>覆盖 ${c.coverage[0]}–${c.coverage[1]}（${ys.length} 个财年）</span>
+        <span>${c.engine ? c.engine.main : ""}</span>
+      </div>
+      <p class="verdict">${c.verdict}</p>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">最新营收</div><div class="v">${fmt(last.rev, last.rev<100?1:0)}<small>亿</small></div><div class="s">${last.y} 年</div></div>
+      <div class="kpi"><div class="k">最新净利</div><div class="v" style="color:${last.np<0?'var(--accent)':'inherit'}">${fmt(last.np, Math.abs(last.np)<100?1:0)}<small>亿</small></div><div class="s">归母净利润</div></div>
+      <div class="kpi"><div class="k">营收 CAGR</div><div class="v">${cagr==null?'—':cagr.toFixed(1)}<small>%</small></div><div class="s">${first.y}–${last.y}</div></div>
+      <div class="kpi"><div class="k">最新毛利率</div><div class="v">${last.gm==null?'—':last.gm.toFixed(1)}<small>%</small></div><div class="s">${npCagr==null?'':'净利 CAGR '+npCagr.toFixed(1)+'%'}</div></div>
+    </div>
+
+    <div class="block">
+      <h3>上市以来：营收（柱）与归母净利（线）</h3>
+      <div class="chart">${chart(c)}
+        <div class="legend"><span><i style="background:#e0d6c6"></i>营业收入（亿元）</span><span><i style="background:var(--accent)"></i>归母净利润（按自身量级缩放）</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>收入结构</h3>
+      <div class="mix">${mix || '<p style="color:var(--ink-4);font-size:12px">未拆分</p>'}</div>
+    </div>
+
+    <div class="block">
+      <h3>四条轴上的位置</h3>
+      <div class="grid2">
+        <div class="box"><div class="lab">货币化引擎</div><p>${c.engine ? c.engine.desc : ""}</p><div class="kv">${c.engine ? c.engine.formula : ""}</div></div>
+        <div class="box"><div class="lab">定价权来源</div><p>${c.moat}</p></div>
+        <div class="box"><div class="lab">付费对象</div><p>${c.payer}</p></div>
+        <div class="box"><div class="lab">五年变迁</div><p>${c.shift}</p></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>红旗与观察点</h3>
+      <ul class="flags">${flags || '<li class="ok">未触发阈值内红旗</li>'}</ul>
+    </div>
+
+    <div class="block">
+      <h3>年度数据（亿元）</h3>
+      <table><thead><tr><th>年度</th><th>营业收入</th><th>归母净利</th><th>毛利率</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+
+    <div class="foot">
+      ${c.note || ""}<br>
+      数据来源：上市公司年报（合并报表口径），经同花顺金融数据接口整理；金额单位人民币亿元。
+      分析框架见 <a href="docs/methodology.md">方法论</a>。本文基于公开信息，不构成投资建议。
+    </div>`;
+}
+
+renderList();
+renderDetail();
+</script>
+</body>
+</html>
