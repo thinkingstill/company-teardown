@@ -63,7 +63,8 @@ A 股现有 5,000 余家上市公司。**这不是全市场扫描，是一个可
 ├── site/template.html      # 查看器模板（占位符 __DATA_JSON__）
 ├── scripts/
 │   ├── build_site.py       # 注入数据 → 生成 index.html + 拆分文件
-│   └── validate.py         # schema / 年份连续性 / 口径 / 文本质量校验
+│   ├── validate.py         # schema / 年份连续性 / 口径 / 文本质量校验
+│   └── push_to_github.sh   # 一键推送（含建仓失败的可执行提示）
 ├── docs/
 │   ├── methodology.md      # 四轴框架与 A 股适配的引擎分类
 │   └── expand.md           # 如何新增一家公司
@@ -81,6 +82,18 @@ open index.html                  # 或直接双击
 ```
 
 无第三方依赖，只用 Python 标准库。
+
+---
+
+## 发布到 GitHub
+
+```bash
+bash scripts/push_to_github.sh          # 默认 thinkingstill/a-share-teardown
+```
+
+脚本会先检查远端仓库是否存在：存在就直接推送；不存在则尝试创建，创建被拒时打印两条可行路径（网页建空仓库 / 重新授权连接器），并明确失败原因，不做无意义的反复重试。
+
+推送成功后还有两步一次性配置：**Settings → Pages → Source 选 GitHub Actions**（`.github/workflows/pages.yml` 会在每次 push 时校验数据、重建站点并发布）；**Projects → New project** 导入 `PROJECT.md` 的批次表格。
 
 ---
 
