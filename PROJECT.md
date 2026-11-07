@@ -2,6 +2,17 @@
 
 > 本文件承担 GitHub Project 的职责：批次进度、每家的数据状态、下一步待办。仓库启用 GitHub Projects 后可同步导入。
 
+## 发布状态
+
+| 通道 | 状态 | 地址 |
+|---|---|---|
+| 在线站点（临时托管） | ✅ 已上线 | https://ad21bdba8e06ceade.app.workbuddy.host/?sharecode=DND4SJQJJN |
+| GitHub 仓库 | ⛔ 被权限阻塞 | 目标 `thinkingstill/a-share-teardown`；token 缺 `Administration: write`，`POST /user/repos` 返回 403 |
+| GitHub Pages | ⏳ 待仓库建立 | 工作流 `.github/workflows/pages.yml` 已就绪 |
+| GitHub Project 看板 | ⏳ 待仓库建立 | 本文件第 2 节即看板内容，可直接导入 |
+
+解除阻塞：网页建空仓库 `a-share-teardown`（Public、不初始化），或重新授权连接器勾选建仓权限，然后 `bash scripts/push_to_github.sh`。
+
 ## 批次
 
 | 批次 | 范围 | 状态 | 完成 |

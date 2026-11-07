@@ -2,7 +2,9 @@
 
 按「**服务领域 × 货币化引擎 × 付费对象 × 时间**」四条轴，把 A 股公司从上市那一年起拆到最新年报：钱从哪来、凭什么能收这个价、谁最终掏钱、这十几年变了什么。
 
-在线查看：打开 `index.html`（单文件，无依赖，双击即可），或访问 GitHub Pages。
+在线查看：**https://ad21bdba8e06ceade.app.workbuddy.host/?sharecode=DND4SJQJJN**
+
+本地查看：打开 `index.html`（单文件，无依赖，双击即可）。
 
 ---
 
