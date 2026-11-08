@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 把本仓库推到 GitHub。
 #   用法: bash scripts/push_to_github.sh [owner] [repo]
-#   默认: thinkingstill/a-share-teardown
+#   默认: thinkingstill/company-teardown
 #
 # 逻辑：先看远端仓库是否存在。存在则直接 push（contents 权限足够）；
 # 不存在则尝试用 API 创建，若因 token 缺 Administration:write 被拒，
@@ -9,7 +9,7 @@
 
 set -uo pipefail
 OWNER="${1:-thinkingstill}"
-REPO="${2:-a-share-teardown}"
+REPO="${2:-company-teardown}"
 cd "$(dirname "$0")/.."
 
 # 1. 取 token（连接器把它写进了 shell 配置）
@@ -47,7 +47,7 @@ Administration:write，因此无法创建新仓库。两条可行路径（任选
 
   A. 网页建空仓库（30 秒，推荐）
      打开 https://github.com/new
-     Repository name 填 a-share-teardown
+     Repository name 填 company-teardown
      选 Public，不要勾选 Add a README / .gitignore / license
      点 Create repository，然后回来重跑本脚本。
 

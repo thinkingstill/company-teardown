@@ -152,7 +152,7 @@ open index.html                  # 或直接双击
 ## 发布到 GitHub
 
 ```bash
-bash scripts/push_to_github.sh          # 默认 thinkingstill/a-share-teardown
+bash scripts/push_to_github.sh          # 默认 thinkingstill/company-teardown
 ```
 
 脚本会先检查远端仓库是否存在：存在就直接推送；不存在则尝试创建，创建被拒时打印两条可行路径（网页建空仓库 / 重新授权连接器），并明确失败原因，不做无意义的反复重试。
