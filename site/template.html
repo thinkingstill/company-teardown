@@ -289,8 +289,8 @@ function renderDetail(){
     <div class="kpis">
       <div class="kpi"><div class="k">最新营收</div><div class="v">${fmt(last.rev, last.rev<100?1:0)}<small>亿</small></div><div class="s">${last.y} 年</div></div>
       <div class="kpi"><div class="k">最新净利</div><div class="v" style="color:${last.np<0?'var(--accent)':'inherit'}">${fmt(last.np, Math.abs(last.np)<100?1:0)}<small>亿</small></div><div class="s">归母净利润</div></div>
-      <div class="kpi"><div class="k">营收 CAGR</div><div class="v">${cagr==null?'—':cagr.toFixed(1)}<small>%</small></div><div class="s">${first.y}–${last.y}</div></div>
-      <div class="kpi"><div class="k">最新毛利率</div><div class="v">${last.gm==null?'—':last.gm.toFixed(1)}<small>%</small></div><div class="s">${npCagr==null?'':'净利 CAGR '+npCagr.toFixed(1)+'%'}</div></div>
+      <div class="kpi"><div class="k">营收 CAGR</div><div class="v">${cagr==null?'—':cagr.toFixed(1)+'%'}</div><div class="s">${first.y}–${last.y}</div></div>
+      <div class="kpi"><div class="k">最新毛利率</div><div class="v">${last.gm==null?'—':last.gm.toFixed(1)+'%'}</div><div class="s">${npCagr==null?'':'净利 CAGR '+npCagr.toFixed(1)+'%'}</div></div>
     </div>
 
     <div class="block">
