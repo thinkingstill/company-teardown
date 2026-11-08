@@ -2,9 +2,9 @@
 
 按「**服务领域 × 货币化引擎 × 付费对象 × 时间**」四条轴，把 A 股公司从上市那一年起拆到最新年报：钱从哪来、凭什么能收这个价、谁最终掏钱、这十几年变了什么。
 
-在线查看：**https://ad21bdba8e06ceade.app.workbuddy.host/?sharecode=DND4SJQJJN**
+在线查看（GitHub Pages，启用后生效）：**https://thinkingstill.github.io/company-teardown/**
 
-本地查看：打开 `index.html`（单文件，无依赖，双击即可）。
+本地查看：`python3 scripts/build_site.py && python3 -m http.server 8000`，浏览器打开 `http://localhost:8000`（`index.html` 由脚本从 `data/companies.json` 生成，未入库）。
 
 ---
 

@@ -6,9 +6,8 @@
 
 | 通道 | 状态 | 地址 |
 |---|---|---|
-| 在线站点（临时托管） | ✅ 已上线（44 家版） | https://ad21bdba8e06ceade.app.workbuddy.host/?sharecode=DND4SJQJJN |
 | GitHub 仓库 | ✅ 已推送 | https://github.com/thinkingstill/company-teardown |
-| GitHub Pages | ⏳ 待启用 | 工作流 `.github/workflows/pages.yml` 已就绪，启用 Source=GitHub Actions 后自动发布 |
+| GitHub Pages | ⏳ 待启用 | 工作流 `.github/workflows/pages.yml` 已就绪，启用 Source=GitHub Actions 后发布到 https://thinkingstill.github.io/company-teardown/ |
 | GitHub Project 看板 | ⏳ 待导入 | 本文件即看板内容，可直接导入 |
 
 ## 批次
