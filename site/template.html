@@ -28,9 +28,13 @@ header{
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-bottom:1px solid var(--line);
 }
-.hd{max-width:1360px;margin:0 auto;padding:14px 28px;display:flex;align-items:baseline;gap:22px;flex-wrap:wrap}
+.hd{max-width:1360px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .hd h1{font-size:16px;font-weight:700;letter-spacing:-.01em}
 .hd .sub{font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.hd .tabs{display:flex;gap:2px;margin-left:6px}
+.hd .tab{font-size:11.5px;padding:5px 12px;border:1px solid var(--line-2);background:transparent;color:var(--ink-3);cursor:pointer;font-family:inherit;border-radius:2px;transition:.15s}
+.hd .tab:hover{color:var(--ink);border-color:var(--ink-3)}
+.hd .tab.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .hd .stats{margin-left:auto;display:flex;gap:20px;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
 .hd .stats b{color:var(--ink);font-weight:600;font-size:13px;margin-right:3px}
 
@@ -119,6 +123,40 @@ td.neg{color:var(--accent)}
 
 .foot{border-top:1px solid var(--line);margin-top:40px;padding-top:16px;font-size:11px;color:var(--ink-4);line-height:1.9}
 
+/* 导出按钮 */
+.xbtn{font-size:11px;padding:5px 12px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-family:inherit;border-radius:2px;transition:.15s;margin-left:auto;white-space:nowrap}
+.xbtn:hover{background:var(--accent);color:#fff}
+
+/* 横比 */
+.cmp-scroll{overflow-x:auto}
+.cmp-table{min-width:680px}
+.cmp-table tr{cursor:pointer}
+.cmp-table tr:hover td{background:var(--paper-2)}
+.cmp-table tr.sel td{background:var(--accent-soft)}
+.cmp-note{font-size:11.5px;color:var(--ink-3);margin-top:12px;line-height:1.8}
+
+/* 横切面 */
+.xs-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.xs-toolbar select{font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-2);background:#fff;color:var(--ink);border-radius:2px;outline:none}
+.xs-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);background:#fff;margin-bottom:28px}
+.xs-stat{padding:16px 18px;border-right:1px solid var(--line)}
+.xs-stat:last-child{border-right:none}
+.xs-stat .k{font-size:10px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase;margin-bottom:6px}
+.xs-stat .v{font-family:var(--mono);font-size:20px;font-weight:600}
+.xs-stat .s{font-size:10.5px;color:var(--ink-4);margin-top:4px;font-family:var(--mono)}
+.bar-h{height:7px;background:var(--paper-3);border-radius:1px;overflow:hidden}
+.bar-h i{display:block;height:100%;background:var(--accent-2);opacity:.85}
+.growth-pos{color:var(--green)}
+.growth-neg{color:var(--accent)}
+
+@media(max-width:960px){
+  .xs-stats{grid-template-columns:1fr 1fr}
+  .xs-stat:nth-child(2){border-right:none}
+  .xs-stat:nth-child(1),.xs-stat:nth-child(2){border-bottom:1px solid var(--line)}
+  .hd .tabs{order:3;width:100%;margin-left:0}
+  .xbtn{margin-left:0}
+}
+
 @media(max-width:960px){
   .main{grid-template-columns:1fr}
   .side{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--line);padding-bottom:14px}
@@ -138,6 +176,10 @@ td.neg{color:var(--accent)}
   <div class="hd">
     <h1>A股上市公司 · 商业模式拆解</h1>
     <div class="sub">服务领域 × 货币化引擎 × 付费对象 × 时间</div>
+    <nav class="tabs" id="tabs">
+      <button class="tab on" data-mode="company">单家公司</button>
+      <button class="tab" data-mode="cross">年度横切面</button>
+    </nav>
     <div class="stats" id="hdStats"></div>
   </div>
 </header>
@@ -158,7 +200,7 @@ const META = __META_JSON__;
 const $ = (s) => document.querySelector(s);
 const fmt = (x, d=0) => (x==null || isNaN(x)) ? "—" : x.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 
-let state = { q:"", ind:"全部", code: DATA.companies[0]?.code };
+let state = { q:"", ind:"全部", code: DATA.companies[0]?.code, mode:"company" };
 
 /* 顶栏统计 */
 (function(){
@@ -180,6 +222,16 @@ let state = { q:"", ind:"全部", code: DATA.companies[0]?.code };
     state.ind = b.dataset.i;
     document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("on", x===b));
     renderList();
+  };
+})();
+
+/* 视图切换：单家公司 / 年度横切面 */
+(function(){
+  $("#tabs").onclick = e => {
+    const b = e.target.closest(".tab"); if(!b) return;
+    state.mode = b.dataset.mode;
+    document.querySelectorAll("#tabs .tab").forEach(x=>x.classList.toggle("on", x===b));
+    if(state.mode==="cross"){ renderCross(); } else { renderDetail(); }
   };
 })();
 
@@ -254,14 +306,79 @@ function chart(c){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${c.name}营收与净利润">${g}</svg>`;
 }
 
+/* 公司级别指标 */
+function companyStats(c){
+  const ys = c.years, first = ys[0], last = ys.at(-1);
+  const n = last.y - first.y;
+  const cagr = (n>0 && first.rev>0 && last.rev>0) ? (Math.pow(last.rev/first.rev, 1/n)-1)*100 : null;
+  const npCagr = (n>0 && first.np>0 && last.np>0) ? (Math.pow(last.np/first.np, 1/n)-1)*100 : null;
+  const nm = last.rev>0 ? last.np/last.rev*100 : null;
+  return {first, last, cagr, npCagr, nm};
+}
+
+/* 金融机构专用指标 */
+function financialBlock(c){
+  const f = c.financial;
+  if(!f) return "";
+  const head = f.type==="bank"
+    ? `<thead><tr><th>年度</th><th>净息差</th><th>不良率</th><th>成本收入比</th><th>拨备覆盖率</th><th>加权ROE</th></tr></thead>`
+    : `<thead><tr><th>年度</th><th>新业务价值(亿)</th><th>内含价值(亿)</th><th>NBV率</th></tr></thead>`;
+  const rows = f.years.map(d=> f.type==="bank"
+    ? `<tr><td>${d.y}</td><td>${d.nim}%</td><td>${d.npl}%</td><td>${d.cir}%</td><td>${d.cov}%</td><td>${d.roe}%</td></tr>`
+    : `<tr><td>${d.y}</td><td>${fmt(d.nbv,1)}</td><td>${fmt(d.ev,0)}</td><td>${d.nbvm}%</td></tr>`
+  ).join("");
+  const note = f.type==="bank"
+    ? "银行不适用制造业毛利率，核心看净息差与信用成本。净息差逐年下行是利率环境的行业性问题，判断看下行斜率是否快于同业，以及拨备覆盖率是否仍有余量。"
+    : "保险看死差+费差+利差。NBV（新业务价值）是未来利润的先行指标，内含价值是存量业务的清算价值；NBV率受新单产品结构影响，2023 年低点与产品切换有关。";
+  return `
+    <div class="block">
+      <h3>金融机构专用指标</h3>
+      <div class="cmp-scroll"><table>${head}<tbody>${rows}</tbody></table></div>
+      <div class="cmp-note">${note}</div>
+    </div>`;
+}
+
+/* 估值块 */
+function valuationBlock(c){
+  const v = c.valuation;
+  if(!v) return "";
+  const st = companyStats(c);
+  return `
+    <div class="block">
+      <h3>估值（${v.asof} 时点快照）</h3>
+      <div class="kpis" style="margin-bottom:0">
+        <div class="kpi"><div class="k">市盈率 PE(TTM)</div><div class="v">${v.pe}</div><div class="s">倍</div></div>
+        <div class="kpi"><div class="k">市净率 PB</div><div class="v">${v.pb}</div><div class="s">倍</div></div>
+        <div class="kpi"><div class="k">股息率 TTM</div><div class="v">${v.dy}%</div><div class="s">${st.last.y} 年</div></div>
+        <div class="kpi"><div class="k">净利率</div><div class="v">${st.nm==null?'—':st.nm.toFixed(1)+'%'}</div><div class="s">归母净利/营收</div></div>
+      </div>
+      <div class="cmp-note">估值仅为抽样覆盖（5 家）。周期股（中远海控、中国神华）优先看 PB 与股息率，不机械使用 PE；历史分位待扩充。</div>
+    </div>`;
+}
+
+/* 同赛道横比表 */
+function cmpTable(c, peers){
+  const engTag = (x)=> ((x.engine||{}).main||"").split("（")[0];
+  const rows = peers.map(p=>{
+    const s = companyStats(p);
+    const sel = p.code===c.code ? ' class="sel"' : '';
+    return `<tr${sel} data-c="${p.code}"><td>${p.name}</td><td>${p.coverage[0]}–${p.coverage[1]}</td><td>${fmt(s.last.rev,0)}</td><td class="${s.last.np<0?'neg':''}">${fmt(s.last.np,0)}</td><td>${s.cagr==null?'—':s.cagr.toFixed(1)+'%'}</td><td>${s.last.gm==null?'—':s.last.gm.toFixed(1)+'%'}</td><td class="${s.nm!=null&&s.nm<0?'neg':''}">${s.nm==null?'—':s.nm.toFixed(1)+'%'}</td></tr>`;
+  }).join("");
+  const note = peers.map(p=>`<b>${p.name}</b>：${engTag(p)}`).join("；");
+  return `
+    <div class="cmp-scroll"><table class="cmp-table">
+      <thead><tr><th>公司</th><th>覆盖</th><th>最新营收</th><th>最新净利</th><th>营收 CAGR</th><th>毛利率</th><th>净利率</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="cmp-note">同赛道差异归因（按货币化引擎）：${note}。点行可切换公司。</div>`;
+}
+
 function renderDetail(){
   const c = DATA.companies.find(x=>x.code===state.code);
   if(!c){ $("#detail").innerHTML = `<div class="empty">选择左侧公司查看拆解</div>`; return; }
   const ys = c.years;
-  const first = ys[0], last = ys.at(-1);
-  const n = last.y - first.y;
-  const cagr = (n>0 && first.rev>0 && last.rev>0) ? (Math.pow(last.rev/first.rev, 1/n)-1)*100 : null;
-  const npCagr = (n>0 && first.np>0 && last.np>0) ? (Math.pow(last.np/first.np, 1/n)-1)*100 : null;
+  const st = companyStats(c);
+  const first = st.first, last = st.last, cagr = st.cagr, npCagr = st.npCagr;
 
   const mix = (c.mix||[]).map(([k,v])=>`
     <div class="mix-row"><div class="nm">${k}</div><div class="bar"><i style="width:${v}%"></i></div><div class="pc">${v}%</div></div>`).join("");
@@ -274,11 +391,22 @@ function renderDetail(){
     return `<li class="${ok?'ok':''}">${ok?f.slice(1):f}</li>`;
   }).join("");
 
+  const peers = DATA.companies.filter(x=>x.industry===c.industry);
+  const cmpHtml = peers.length>=2 ? `
+    <div class="block">
+      <h3>同赛道横比（${c.industry} · ${peers.length} 家）</h3>
+      ${cmpTable(c, peers)}
+    </div>` : "";
+
   $("#detail").innerHTML = `
     <div class="dhead">
       <div class="eyebrow">${c.industry}${c.sub?' / '+c.sub:''} · ${c.code}</div>
-      <h2>${c.name}</h2>
+      <div style="display:flex;align-items:flex-start;gap:14px">
+        <h2 style="flex:1;margin-bottom:0">${c.name}</h2>
+        <button class="xbtn" id="xbtn">导出 Markdown</button>
+      </div>
       <div class="meta">
+        <span>${c.market || "A股"}</span>
         <span>上市 ${c.listed}</span>
         <span>覆盖 ${c.coverage[0]}–${c.coverage[1]}（${ys.length} 个财年）</span>
         <span>${c.engine ? c.engine.main : ""}</span>
@@ -315,20 +443,195 @@ function renderDetail(){
       </div>
     </div>
 
+    ${financialBlock(c)}
+
     <div class="block">
       <h3>红旗与观察点</h3>
       <ul class="flags">${flags || '<li class="ok">未触发阈值内红旗</li>'}</ul>
     </div>
+
+    ${cmpHtml}
 
     <div class="block">
       <h3>年度数据（亿元）</h3>
       <table><thead><tr><th>年度</th><th>营业收入</th><th>归母净利</th><th>毛利率</th></tr></thead><tbody>${rows}</tbody></table>
     </div>
 
+    ${valuationBlock(c)}
+
     <div class="foot">
       ${c.note || ""}<br>
       数据来源：上市公司年报（合并报表口径），经同花顺金融数据接口整理；金额单位人民币亿元。
       分析框架见 <a href="docs/methodology.md">方法论</a>。本文基于公开信息，不构成投资建议。
+    </div>`;
+
+  // 导出与横比交互
+  const xb = $("#xbtn");
+  if(xb) xb.onclick = ()=> exportMarkdown(c);
+  const ct = $("#detail").querySelector(".cmp-table");
+  if(ct) ct.onclick = e=>{
+    const tr = e.target.closest("tr[data-c]"); if(!tr) return;
+    state.code = tr.dataset.c;
+    renderList(); renderDetail();
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+}
+
+/* 单家导出 Markdown */
+function exportMarkdown(c){
+  const st = companyStats(c);
+  const rows = c.years.map(d=>`| ${d.y} | ${d.rev} | ${d.np} | ${d.gm==null?'—':d.gm.toFixed(1)}% |`).join("\n");
+  const flags = (c.flags||[]).map(f=>`- ${f}`).join("\n");
+  const mix = (c.mix||[]).map(([k,v])=>`- ${k}：${v}%`).join("\n");
+  const finMd = c.financial ? `
+## 金融机构专用指标
+${c.financial.type==="bank" ? "| 年度 | 净息差 | 不良率 | 成本收入比 | 拨备覆盖率 | 加权ROE |\n|---|---|---|---|---|---|\n" : "| 年度 | 新业务价值(亿) | 内含价值(亿) | NBV率 |\n|---|---|---|---|\n"}
+${c.financial.years.map(d=> c.financial.type==="bank" ? `| ${d.y} | ${d.nim}% | ${d.npl}% | ${d.cir}% | ${d.cov}% | ${d.roe}% |` : `| ${d.y} | ${d.nbv} | ${d.ev} | ${d.nbvm}% |`).join("\n")}` : "";
+  const valMd = c.valuation ? `
+## 估值（${c.valuation.asof} 时点快照）
+- PE(TTM)：${c.valuation.pe} 倍；PB：${c.valuation.pb} 倍；股息率 TTM：${c.valuation.dy}%` : "";
+  const md = `# ${c.name}（${c.code}）商业模式拆解
+
+> ${(c.verdict||"").split("<b>").join("").split("</b>").join("")}
+
+- 行业：${c.industry}${c.sub?' / '+c.sub:''}（${c.market||"A股"}）
+- 上市：${c.listed}，覆盖 ${c.coverage[0]}–${c.coverage[1]}（${c.years.length} 个财年）
+- 最新营收：${c.years.at(-1).rev} 亿元；最新归母净利：${c.years.at(-1).np} 亿元
+- 营收 CAGR：${st.cagr==null?'—':st.cagr.toFixed(1)+'%'}；最新毛利率：${c.years.at(-1).gm==null?'—':c.years.at(-1).gm.toFixed(1)+'%'}
+
+## 货币化引擎
+${c.engine?c.engine.desc:""}
+${c.engine?c.engine.formula:""}
+
+## 收入结构
+${mix}
+
+## 定价权来源
+${c.moat}
+
+## 付费对象
+${c.payer}
+
+## 五年变迁
+${c.shift}
+
+## 红旗与观察点
+${flags}
+${finMd}${valMd}
+## 年度数据（亿元）
+| 年度 | 营业收入 | 归母净利 | 毛利率 |
+|---|---|---|---|
+${rows}
+
+${c.note?"备注："+c.note:""}
+`;
+  const blob = new Blob([md], {type:"text/markdown;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${c.code}_${c.name}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* 引擎短标签 */
+function engineTag(c){
+  const e = (c.engine||{}).main||"";
+  const tags = [];
+  if(/E1/.test(e)) tags.push("E1广告");
+  if(/E2/.test(e)) tags.push("E2佣金");
+  if(/E3/.test(e)) tags.push("E3自营");
+  if(/E4/.test(e)) tags.push("E4履约");
+  if(/E5/.test(e)) tags.push("E5订阅");
+  if(/E6/.test(e)) tags.push("E6金融");
+  if(/E7/.test(e)) tags.push("E7云");
+  if(/E8/.test(e)) tags.push("E8交付");
+  if(/E9/.test(e)) tags.push("E9资源");
+  return tags.length?tags.join("+"):"其他";
+}
+
+/* 年度横切面 */
+function renderCross(){
+  const allYears = [...new Set(DATA.companies.flatMap(c=>c.years.map(d=>d.y)))].sort((a,b)=>b-a);
+  const opts = allYears.map(y=>`<option value="${y}"${y===allYears[0]?' selected':''}>${y}</option>`).join("");
+  $("#detail").innerHTML = `
+    <div class="xs-toolbar">
+      <h2 style="font-size:22px;font-weight:700;letter-spacing:-.02em">年度横切面</h2>
+      <select id="xsYear">${opts}</select>
+      <div style="font-size:11.5px;color:var(--ink-4)">选择某一年，看全样本的引擎分布与行业扩张/收缩</div>
+    </div>
+    <div id="xsBody"></div>`;
+  $("#xsYear").onchange = e => crossYear(+e.target.value);
+  crossYear(allYears[0]);
+}
+
+function crossYear(year){
+  const prevYear = year - 1;
+  const rows = DATA.companies.map(c=>{
+    const y = c.years.find(d=>d.y===year);
+    const p = c.years.find(d=>d.y===prevYear);
+    return {c, y, p};
+  }).filter(x=>x.y);
+
+  const rev = rows.reduce((s,x)=>s+x.y.rev,0);
+  const np = rows.reduce((s,x)=>s+x.y.np,0);
+  const profit = rows.filter(x=>x.y.np>0).length;
+
+  const indMap = {};
+  rows.forEach(x=>{
+    const k = x.c.industry;
+    indMap[k] = indMap[k] || {rev:0, np:0, n:0, gmSum:0, gmN:0};
+    indMap[k].rev += x.y.rev; indMap[k].np += x.y.np; indMap[k].n++;
+    if(x.y.gm!=null){ indMap[k].gmSum += x.y.gm; indMap[k].gmN++; }
+  });
+  const inds = Object.entries(indMap).sort((a,b)=>b[1].rev-a[1].rev);
+  const indRows = inds.map(([k,v])=>{
+    const gm = v.gmN? (v.gmSum/v.gmN).toFixed(1)+'%' : '—';
+    const nm = v.rev>0? (v.np/v.rev*100).toFixed(1)+'%' : '—';
+    return `<tr><td>${k}</td><td>${v.n}</td><td>${fmt(v.rev,0)}</td><td class="${v.np<0?'neg':''}">${fmt(v.np,0)}</td><td>${gm}</td><td>${nm}</td></tr>`;
+  }).join("");
+
+  const engMap = {};
+  rows.forEach(x=>{
+    const e = engineTag(x.c);
+    engMap[e] = engMap[e] || {rev:0, n:0};
+    engMap[e].rev += x.y.rev; engMap[e].n++;
+  });
+  const engs = Object.entries(engMap).sort((a,b)=>b[1].rev-a[1].rev);
+  const maxRev = Math.max(...engs.map(e=>e[1].rev), 1);
+  const engRows = engs.map(([k,v])=>`
+    <div class="mix-row"><div class="nm">${k}（${v.n} 家）</div><div class="bar"><i style="width:${(v.rev/maxRev*100).toFixed(1)}%"></i></div><div class="pc">${fmt(v.rev,0)}</div></div>`).join("");
+
+  const growth = rows.filter(x=>x.p && x.p.rev>0).map(x=>({
+    name: x.c.name, g: (x.y.rev/x.p.rev - 1)*100
+  })).sort((a,b)=>b.g-a.g);
+  const up = growth.filter(x=>x.g>0).slice(0,5);
+  const down = growth.filter(x=>x.g<0).slice(-5).reverse();
+
+  $("#xsBody").innerHTML = `
+    <div class="xs-stats">
+      <div class="xs-stat"><div class="k">样本公司</div><div class="v">${rows.length}</div><div class="s">${year} 年有数据</div></div>
+      <div class="xs-stat"><div class="k">营收合计</div><div class="v">${fmt(rev,0)}</div><div class="s">亿元</div></div>
+      <div class="xs-stat"><div class="k">净利合计</div><div class="v" style="color:${np<0?'var(--accent)':'inherit'}">${fmt(np,0)}</div><div class="s">亿元</div></div>
+      <div class="xs-stat"><div class="k">盈利公司</div><div class="v">${profit}<span style="font-size:.55em;color:var(--ink-3)"> / ${rows.length}</span></div><div class="s">${(profit/rows.length*100).toFixed(0)}%</div></div>
+    </div>
+
+    <div class="block">
+      <h3>行业横切面（${year}）</h3>
+      <div class="cmp-scroll"><table><thead><tr><th>行业</th><th>公司数</th><th>营收</th><th>净利</th><th>平均毛利率</th><th>净利率</th></tr></thead><tbody>${indRows}</tbody></table></div>
+    </div>
+
+    <div class="block">
+      <h3>货币化引擎分布（${year}）</h3>
+      <div class="box">${engRows || '<p style="color:var(--ink-4);font-size:12px">无数据</p>'}</div>
+    </div>
+
+    <div class="grid2">
+      <div class="box"><div class="lab">营收增速最快（较 ${prevYear}）</div>
+        ${up.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${x.name}</span><span class="growth-pos" style="font-family:var(--mono)">+${x.g.toFixed(1)}%</span></div>`).join("") || '<p style="color:var(--ink-4);font-size:12px">—</p>'}
+      </div>
+      <div class="box"><div class="lab">营收收缩最快（较 ${prevYear}）</div>
+        ${down.map(x=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line)"><span>${x.name}</span><span class="growth-neg" style="font-family:var(--mono)">${x.g.toFixed(1)}%</span></div>`).join("") || '<p style="color:var(--ink-4);font-size:12px">—</p>'}
+      </div>
     </div>`;
 }
 
