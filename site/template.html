@@ -188,6 +188,7 @@ td.neg{color:var(--accent)}
   <aside class="side">
     <div class="search"><input id="q" type="text" placeholder="搜索公司名 / 代码 / 行业"></div>
     <div class="filters" id="filters"></div>
+    <div class="filters" id="engFilters" style="margin-top:-8px"></div>
     <div class="clist" id="clist"></div>
   </aside>
   <main class="detail" id="detail"></main>
@@ -200,7 +201,7 @@ const META = __META_JSON__;
 const $ = (s) => document.querySelector(s);
 const fmt = (x, d=0) => (x==null || isNaN(x)) ? "—" : x.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 
-let state = { q:"", ind:"全部", code: DATA.companies[0]?.code, mode:"company" };
+let state = { q:"", ind:"全部", eng:"全部", code: DATA.companies[0]?.code, mode:"company" };
 
 /* 顶栏统计 */
 (function(){
@@ -225,6 +226,18 @@ let state = { q:"", ind:"全部", code: DATA.companies[0]?.code, mode:"company" 
   };
 })();
 
+/* 引擎筛选 */
+(function(){
+  const engs = ["E1广告","E2佣金","E3自营","E4履约","E5订阅","E6金融","E7云","E8交付","E9资源"];
+  $("#engFilters").innerHTML = ["全部", ...engs].map(e=>`<button class="chip${e===state.eng?' on':''}" data-e="${e}">${e}</button>`).join("");
+  $("#engFilters").onclick = e => {
+    const b = e.target.closest(".chip"); if(!b) return;
+    state.eng = b.dataset.e;
+    document.querySelectorAll("#engFilters .chip").forEach(x=>x.classList.toggle("on", x===b));
+    renderList();
+  };
+})();
+
 /* 视图切换：单家公司 / 年度横切面 */
 (function(){
   $("#tabs").onclick = e => {
@@ -238,8 +251,9 @@ let state = { q:"", ind:"全部", code: DATA.companies[0]?.code, mode:"company" 
 function match(c){
   const q = state.q.trim().toLowerCase();
   const okInd = state.ind === "全部" || c.industry === state.ind;
+  const okEng = state.eng === "全部" || engineTag(c).includes(state.eng);
   const okQ = !q || (c.name+c.code+c.industry+(c.sub||"")+c.verdict).toLowerCase().includes(q);
-  return okInd && okQ;
+  return okInd && okEng && okQ;
 }
 
 function renderList(){
