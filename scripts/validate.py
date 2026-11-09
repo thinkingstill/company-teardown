@@ -74,6 +74,28 @@ def main() -> int:
         if len(c.get("verdict", "")) < 30:
             warns.append(f"{tag} 结论过短，可能不构成判断")
 
+        # 估值：结构、分位区间、负 PE 一致性
+        v = c.get("valuation")
+        if v:
+            hist = v.get("history") or []
+            if len(hist) < 3:
+                warns.append(f"{tag} 估值序列仅 {len(hist)} 个年度")
+            ys_hist = [d.get("y") for d in hist]
+            if ys_hist != sorted(ys_hist):
+                errors.append(f"{tag} 估值序列年份未升序")
+            if len(set(ys_hist)) != len(ys_hist):
+                errors.append(f"{tag} 估值序列年份重复")
+            p = v.get("pct") or {}
+            for k in ("pe", "pb", "dy"):
+                val = p.get(k)
+                if val is not None and not (0 <= val <= 100):
+                    errors.append(f"{tag} {k} 分位 {val} 超出 0–100")
+            pe = v.get("pe")
+            if pe is not None and pe <= 0 and p.get("pe") is not None:
+                errors.append(f"{tag} PE 为负却给出了 PE 分位（应置 null）")
+            if hist and abs((hist[-1].get("pe") or 0) - (pe or 0)) > 1e-6:
+                warns.append(f"{tag} valuation.pe 与序列末项不一致")
+
     print(f"[INFO] {len(cs)} 家公司，{sum(len(c['years']) for c in cs)} 个财年，"
           f"{len({c['industry'] for c in cs})} 个行业")
     for e in errors:

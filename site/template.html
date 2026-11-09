@@ -135,6 +135,20 @@ td.neg{color:var(--accent)}
 .cmp-table tr.sel td{background:var(--accent-soft)}
 .cmp-note{font-size:11.5px;color:var(--ink-3);margin-top:12px;line-height:1.8}
 
+/* 估值分位 */
+.pctgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:20px}
+.pctcell .pl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.pctbar .track{position:relative;height:6px;background:var(--paper-3);border-radius:1px}
+.pctbar .track i{position:absolute;left:0;top:0;height:6px;background:linear-gradient(90deg,var(--green-soft),var(--accent-soft));border-radius:1px}
+.pctbar .track b{position:absolute;top:-3px;width:4px;height:12px;background:var(--accent);transform:translateX(-2px);border-radius:1px}
+.pctbar .scale{display:flex;justify-content:space-between;font-size:9px;color:var(--ink-4);font-family:var(--mono);margin-top:4px}
+.pctbar.na{height:6px;background:repeating-linear-gradient(45deg,var(--paper-3),var(--paper-3) 4px,transparent 4px,transparent 8px);display:flex;align-items:center}
+.pctbar.na span{display:none}
+.pctcell .phint{font-size:10px;color:var(--ink-4);margin-top:4px}
+.chart .legend{display:flex;gap:18px;font-size:10.5px;color:var(--ink-3);padding:6px 2px 2px;font-family:var(--mono)}
+.chart .legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px}
+.chart .legend .legend-note{color:var(--ink-4);margin-left:auto}
+
 /* 横切面 */
 .xs-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
 .xs-toolbar select{font-family:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line-2);background:#fff;color:var(--ink);border-radius:2px;outline:none}
@@ -166,6 +180,12 @@ td.neg{color:var(--accent)}
   .kpi:nth-child(2){border-right:none}
   .kpi:nth-child(1),.kpi:nth-child(2){border-bottom:1px solid var(--line)}
   .grid2{grid-template-columns:1fr}
+  .pctgrid{grid-template-columns:1fr;gap:14px}
+  .chart{padding:12px 8px 6px}
+  .chart .legend{flex-wrap:wrap;gap:10px}
+  .chart .legend .legend-note{margin-left:0;width:100%}
+  /* 窄屏下 SVG 等比缩小会让 9.5px 的字缩到 4px 不可读，故隐藏点上的数值标签，保留轴刻度与悬浮提示 */
+  .chart .ptlbl{display:none}
   .hd{padding:12px 20px}
   .hd .stats{display:none}
 }
@@ -352,21 +372,146 @@ function financialBlock(c){
     </div>`;
 }
 
-/* 估值块 */
+/* 估值分位：把 0–100 的数变成一句人话 */
+function pctWord(p){
+  if(p==null) return "样本不足";
+  if(p<=10) return "极低位";
+  if(p<=30) return "低位";
+  if(p<=70) return "中位";
+  if(p<=90) return "高位";
+  return "极高位";
+}
+
+/* 分位条：一个 0–100 的横向刻度 + 当前位置游标 */
+function pctBar(p){
+  if(p==null) return `<div class="pctbar na"><span>样本不足，不计算分位</span></div>`;
+  return `<div class="pctbar"><div class="track"><i style="width:${p}%"></i><b style="left:${p}%"></b></div>
+    <div class="scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>`;
+}
+
+/* 估值 5 年走势：PE / PB 双折线
+   两条线各自归一化到自身 min–max，共用画布；标签交替上下错位，避免相近年份标签压字。 */
+function valChart(v){
+  const h = v.history || [];
+  if(h.length < 2) return "";
+  // 窄屏用更小的 viewBox，让同样的 9.5px 字号在等比缩放后实际显示更大
+  const narrow = (typeof window !== "undefined") && window.innerWidth <= 960;
+  const W = narrow ? 360 : 720, H = narrow ? 200 : 220;
+  const P = narrow ? {l:30, r:30, t:24, b:26} : {l:52, r:52, t:26, b:30};
+  const iw = W-P.l-P.r, ih = H-P.t-P.b;
+  const n = h.length;
+  const FS = narrow ? 8.5 : 9.5;
+  const x = i => P.l + (n===1 ? iw/2 : iw*i/(n-1));
+
+  const series = [];
+  const draw = (key, color, side) => {
+    const vals = h.map(d=>d[key]).filter(v=>v!=null);
+    if(!vals.length) return;
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    const span = (hi-lo) || 1;
+    const y = val => P.t + ih - ((val-lo)/span)*ih*0.86 - ih*0.07;
+    let pts = [];
+    h.forEach((d,i)=>{ if(d[key]!=null) pts.push([x(i), y(d[key]), d[key], d.y]); });
+    series.push({key, color, side, pts, lo, hi});
+  };
+  draw("pe", "#b4471f", "left");
+  draw("pb", "#3d5a80", "right");
+
+  // 网格
+  let g = "";
+  for(let k=0;k<=3;k++){
+    const yy = P.t + ih*k/3;
+    g += `<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="#efe9dd" stroke-width="1"/>`;
+  }
+  // 轴标题放在画布顶部独立一行，刻度贴到轴末端，避免与数据标签抢位置
+  const axisLbl = (s) => {
+    const tx = s.side==="left" ? 6 : W-6;
+    const anchor = s.side==="left" ? "start" : "end";
+    const txTick = s.side==="left" ? P.l-8 : W-P.r+8;
+    const anchorTick = s.side==="left" ? "end" : "start";
+    return `<text x="${tx}" y="${P.t-14}" text-anchor="${anchor}" font-size="${FS}" fill="${s.color}" font-family="ui-monospace,monospace" letter-spacing="1.5">${s.key.toUpperCase()}（倍）</text>`
+      + `<text x="${txTick}" y="${P.t+ih+13}" text-anchor="${anchorTick}" font-size="${FS-0.5}" fill="${s.color}" font-family="ui-monospace,monospace">${s.lo.toFixed(1)}</text>`
+      + `<text x="${txTick}" y="${P.t-3}" text-anchor="${anchorTick}" font-size="${FS-0.5}" fill="${s.color}" font-family="ui-monospace,monospace">${s.hi.toFixed(1)}</text>`;
+  };
+  series.forEach(s=>{ g += axisLbl(s); });
+
+  // 折线
+  series.forEach(s=>{
+    g += `<polyline points="${s.pts.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  // 点 + 标签（PE 标签在上，PB 标签在下；首末端点向内收，避免压住坐标轴刻度）
+  series.forEach(s=>{
+    const up = s.key === "pe";
+    const m = s.pts.length;
+    s.pts.forEach(([cx,cy,val,y],idx)=>{
+      const isFirst = idx===0, isLast = idx===m-1;
+      // 首/末点标签一律省略：它们离坐标轴刻度太近，容易压字（数值仍可由轴刻度与浮标读得）
+      const skipLbl = isFirst || isLast;
+      const anchor = isFirst ? "start" : isLast ? "end" : "middle";
+      const dx = isFirst ? -2 : isLast ? 2 : 0;
+      g += `<circle cx="${cx}" cy="${cy}" r="3.2" fill="#fff" stroke="${s.color}" stroke-width="1.8"><title>${y} 年 ${s.key.toUpperCase()} ${val}</title></circle>`;
+      if(!skipLbl){
+        g += `<text x="${cx+dx}" y="${cy + (up ? -13 : 18)}" text-anchor="${anchor}" font-size="${FS}" fill="${s.color}" font-family="ui-monospace,monospace" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round" class="ptlbl">${val}</text>`;
+      }
+    });
+  });
+  // x 轴
+  h.forEach((d,i)=>{
+    g += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${FS}" fill="#b3aea2" font-family="ui-monospace,monospace">${d.y}</text>`;
+  });
+
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${v.asof} 前五年 PE 与 PB 走势">${g}</svg>
+    <div class="legend"><span><i style="background:#b4471f"></i>PE(TTM) 倍（左轴）</span><span><i style="background:#3d5a80"></i>PB 倍（右轴）</span><span class="legend-note">两条线各按自身区间缩放，只比形状不比高低</span></div></div>`;
+}
+
+/* 估值块（时点数值 + 5 年分位 + 走势） */
 function valuationBlock(c){
   const v = c.valuation;
   if(!v) return "";
-  const st = companyStats(c);
+  const h = v.history || [];
+  const p = v.pct || {};
+  const st = v.pe_state || "ok";
+  const loss = st === "loss";
+  const win = (v.pct_years && v.pct_years[0]!==v.pct_years[1]) ? `${v.pct_years[0]}–${v.pct_years[1]}` : "历史窗口";
+
+  const peSub = loss ? "亏损，PE 无意义"
+    : st === "void" ? "本年利润趋近零，PE 作废"
+    : st === "thin" ? `仅 ${v.pe_valid_n} 个正 PE 样本，不算分位`
+    : `${win} 分位 ${p.pe==null?'—':p.pe.toFixed(0)+'%'} · ${pctWord(p.pe)}`;
+  const peVal = v.pe == null ? "—" : fmt(v.pe,2);
+
+  const peKpi = `<div class="kpi"><div class="k">市盈率 PE(TTM)</div><div class="v">${peVal}${v.pe==null?'':'<small>倍</small>'}</div><div class="s">${peSub}</div></div>`;
+
+  let note;
+  if(loss){
+    note = `该公司最新年度<b>归母净利为负，PE 为负值（${fmt(v.pe,2)} 倍），此时 PE 与「历史分位」都没有经济含义</b>——分母是亏损，算出来的是负数比率。判断这类公司看 <b>PB ${fmt(v.pb,2)} 倍（分位 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} · ${pctWord(p.pb)}）</b>与现金流，不看 PE。走势图中的 PE 折线在转亏后断裂，正是这个原因。`;
+  } else if(st === "void"){
+    note = `当年<b>净利趋近于零</b>（微利或微亏），PE 被算到极端值后作废——它衡量的是「分母有多小」，不是「估值有多贵」。这种情况看 <b>PB ${fmt(v.pb,2)} 倍（分位 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} · ${pctWord(p.pb)}）</b>。`;
+  } else if(st === "thin"){
+    note = `窗口内只有 <b>${v.pe_valid_n} 个有效正 PE 样本</b>（其余年份亏损或利润趋近零），不足 ${3} 个无法计算分位，此处不给 PE 分位以避免误导。PB 分位 ${p.pb==null?'—':p.pb.toFixed(0)+'%'}（${pctWord(p.pb)}）仍可参考。`;
+  } else {
+    note = `分位口径：<b>百分位法</b>，${win} 各年度末取值为样本，0% = 五年最低、100% = 五年最高。当前 PE 处于 ${p.pe==null?'—':p.pe.toFixed(0)+'%'} 分位（${pctWord(p.pe)}）、PB 处于 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} 分位（${pctWord(p.pb)}）。<b>分位低不等于便宜</b>——周期股在盈利顶点时 PE 最低；要结合 PB 与股息率一起看。`;
+  }
+
   return `
     <div class="block">
-      <h3>估值（${v.asof} 时点快照）</h3>
-      <div class="kpis" style="margin-bottom:0">
-        <div class="kpi"><div class="k">市盈率 PE(TTM)</div><div class="v">${v.pe}</div><div class="s">倍</div></div>
-        <div class="kpi"><div class="k">市净率 PB</div><div class="v">${v.pb}</div><div class="s">倍</div></div>
-        <div class="kpi"><div class="k">股息率 TTM</div><div class="v">${v.dy}%</div><div class="s">${st.last.y} 年</div></div>
-        <div class="kpi"><div class="k">净利率</div><div class="v">${st.nm==null?'—':st.nm.toFixed(1)+'%'}</div><div class="s">归母净利/营收</div></div>
+      <h3>估值与历史分位</h3>
+      <div class="kpis" style="margin-bottom:20px">
+        ${peKpi}
+        <div class="kpi"><div class="k">市净率 PB</div><div class="v">${fmt(v.pb,2)}<small>倍</small></div><div class="s">${win} 分位 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} · ${pctWord(p.pb)}</div></div>
+        <div class="kpi"><div class="k">股息率 TTM</div><div class="v">${v.dy==null?'—':fmt(v.dy,2)+'%'}</div><div class="s">分位 ${p.dy==null?'—':p.dy.toFixed(0)+'%'}${p.dy!=null?' · '+pctWord(p.dy):''}</div></div>
+        <div class="kpi"><div class="k">净利率</div><div class="v">${companyStats(c).nm==null?'—':companyStats(c).nm.toFixed(1)+'%'}</div><div class="s">归母净利/营收</div></div>
       </div>
-      <div class="cmp-note">估值仅为抽样覆盖（5 家）。周期股（中远海控、中国神华）优先看 PB 与股息率，不机械使用 PE；历史分位待扩充。</div>
+
+      <div class="pctgrid">
+        <div class="pctcell"><div class="pl">PE 分位${(loss||st==='void')?'（不适用）':''}</div>${pctBar(p.pe)}<div class="phint">${peSub}</div></div>
+        <div class="pctcell"><div class="pl">PB 分位</div>${pctBar(p.pb)}<div class="phint">${pctWord(p.pb)}</div></div>
+        <div class="pctcell"><div class="pl">股息率分位</div>${pctBar(p.dy)}<div class="phint">${pctWord(p.dy)}</div></div>
+      </div>
+
+      ${valChart(v)}
+
+      <div class="cmp-note">数据截至 ${v.asof}（各年度末收盘）。${note} 分位样本 ${h.length} 个年度${loss||st==='void'?'，其中正 PE 样本 '+v.pe_valid_n+' 个':''}。</div>
     </div>`;
 }
 
@@ -501,9 +646,31 @@ function exportMarkdown(c){
 ## 金融机构专用指标
 ${c.financial.type==="bank" ? "| 年度 | 净息差 | 不良率 | 成本收入比 | 拨备覆盖率 | 加权ROE |\n|---|---|---|---|---|---|\n" : "| 年度 | 新业务价值(亿) | 内含价值(亿) | NBV率 |\n|---|---|---|---|\n"}
 ${c.financial.years.map(d=> c.financial.type==="bank" ? `| ${d.y} | ${d.nim}% | ${d.npl}% | ${d.cir}% | ${d.cov}% | ${d.roe}% |` : `| ${d.y} | ${d.nbv} | ${d.ev} | ${d.nbvm}% |`).join("\n")}` : "";
-  const valMd = c.valuation ? `
-## 估值（${c.valuation.asof} 时点快照）
-- PE(TTM)：${c.valuation.pe} 倍；PB：${c.valuation.pb} 倍；股息率 TTM：${c.valuation.dy}%` : "";
+  const valMd = (()=>{
+    const v = c.valuation;
+    if(!v) return "";
+    const p = v.pct || {};
+    const st = v.pe_state || "ok";
+    const loss = st === "loss";
+    const win = (v.pct_years && v.pct_years[0]!==v.pct_years[1]) ? `${v.pct_years[0]}–${v.pct_years[1]}` : "历史窗口";
+    const peShow = loss ? `${v.pe} 倍（亏损，无意义）` : st === "void" ? "本年净利趋近零，PE 作废" : st === "thin" ? `仅 ${v.pe_valid_n} 个有效样本，不算分位` : `${v.pe} 倍`;
+    const pcts = `- PE：${peShow}；PB：${v.pb} 倍；股息率 TTM：${v.dy==null?'—':v.dy+'%'}
+- 历史分位（${win}）：PE ${(loss||st==='void'||st==='thin'||p.pe==null)?'不适用':p.pe.toFixed(0)+'%'}、PB ${p.pb==null?'—':p.pb.toFixed(0)+'%'}、股息率 ${p.dy==null?'—':p.dy.toFixed(0)+'%'}`;
+    const tbl = (v.history||[]).length ? `
+### 估值序列（各年度末）
+
+| 年度 | PE(TTM) | PB | 股息率 TTM |
+|---|---|---|---|
+${v.history.map(d=>`| ${d.y} | ${d.pe==null?'—':d.pe.toFixed(2)} | ${d.pb==null?'—':d.pb.toFixed(2)} | ${d.dy==null?'—':d.dy.toFixed(2)+'%'} |`).join("\n")}` : "";
+    const warn = loss ? `\n> 最新年度亏损，PE 为 ${v.pe} 倍（负值），此时 PE 与 PE 分位无经济含义，判断请看 PB 与现金流。`
+      : st === "void" ? `\n> 当年净利趋近于零，PE 被算到极端值后作废；判断请看 PB 与现金流。`
+      : st === "thin" ? `\n> 窗口内仅 ${v.pe_valid_n} 个有效正 PE 样本，不足 3 个不计算 PE 分位。`
+      : "";
+    return `
+## 估值（截至 ${v.asof}）
+${pcts}
+${tbl}${warn}`;
+  })();
   const md = `# ${c.name}（${c.code}）商业模式拆解
 
 > ${(c.verdict||"").split("<b>").join("").split("</b>").join("")}
