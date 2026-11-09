@@ -9,8 +9,10 @@ P = os.path.join(ROOT, "data", "companies.json")
 d = json.load(open(P, encoding="utf-8"))
 
 BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
-           "batch_new1.json", "batch_new2.json", "batch_new3.json"]
-NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d"]
+           "batch_new1.json", "batch_new2.json", "batch_new3.json",
+           "batch_new4.json", "batch_new5.json", "batch_new6.json",
+           "batch_new7.json", "batch_new8.json"]
+NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e"]
 
 narr = {}
 for m in NARR_MODULES:
