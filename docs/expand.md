@@ -69,7 +69,7 @@ python3 scripts/validate.py     # 必须 0 错误
 python3 scripts/build_site.py   # 生成 index.html 与拆分文件
 ```
 
-提交时一并带上 `data/companies.json`、`data/companies/<code>.json` 和 `index.html`。
+提交时**只带 `data/companies.json`**（唯一主数据源）。`data/companies/<code>.json` 与 `index.html` 都是 `build_site.py` 生成的构建产物，已在 `.gitignore` 中排除，由 CI（Pages 工作流）或本地构建生成，**不入库**。
 
 ## 常见错误
 

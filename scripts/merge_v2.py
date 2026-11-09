@@ -8,8 +8,9 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 P = os.path.join(ROOT, "data", "companies.json")
 d = json.load(open(P, encoding="utf-8"))
 
-BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json"]
-NARR_MODULES = ["narr_a", "narr_b", "narr_c"]
+BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
+           "batch_new1.json", "batch_new2.json", "batch_new3.json"]
+NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d"]
 
 narr = {}
 for m in NARR_MODULES:
