@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> int:
-    files = sorted(glob.glob(str(ROOT / "tmp/val/g*.json")))
+    files = sorted(set(glob.glob(str(ROOT / "tmp/val/g*.json")))
+                   | set(glob.glob(str(ROOT / "tmp/val/v6c_*.json"))))
     issues, covered = [], {}
     for f in files:
         try:

@@ -37,6 +37,7 @@ header{
 .hd .tab.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .hd .stats{margin-left:auto;display:flex;gap:20px;font-size:11px;color:var(--ink-3);font-family:var(--mono)}
 .hd .stats b{color:var(--ink);font-weight:600;font-size:13px;margin-right:3px}
+.hd .stats .statwarn{color:#b45309;border:1px dashed #d9a441;border-radius:999px;padding:1px 8px}
 
 /* 布局 */
 .main{max-width:1360px;margin:0 auto;display:grid;grid-template-columns:296px 1fr;gap:0;min-height:calc(100vh - 58px)}
@@ -228,11 +229,20 @@ let state = { q:"", ind:"全部", eng:"全部", code: DATA.companies[0]?.code, m
 (function(){
   const cs = DATA.companies;
   const rev = cs.reduce((s,c)=> s + (c.years.at(-1)?.rev || 0), 0);
+  // 行业数按申万口径算：跨市场 6 家用的是「互联网 / 消费电子」两个自定义标签，
+  // 直接数标签会得到 33 个，比申万一级的 31 个还多，读者会以为覆盖更广了。
+  const SW = new Set(["农林牧渔","基础化工","钢铁","有色金属","电子","家用电器","食品饮料",
+    "纺织服饰","轻工制造","医药生物","公用事业","交通运输","房地产","商贸零售","社会服务",
+    "银行","非银金融","综合","建筑材料","建筑装饰","电力设备","机械设备","国防军工","汽车",
+    "美容护理","计算机","传媒","通信","煤炭","石油石化","环保"]);
+  const swHit = SW.size ? [...new Set(cs.map(c=>c.industry))].filter(i=>SW.has(i)).length : 0;
+  const noVal = cs.filter(c=>!c.valuation).length;
   $("#hdStats").innerHTML = `
     <div><b>${cs.length}</b>家公司</div>
-    <div><b>${new Set(cs.map(c=>c.industry)).size}</b>个行业</div>
+    <div><b>${swHit}</b>/31 个申万行业</div>
     <div><b>${cs.reduce((s,c)=>s+c.years.length,0)}</b>个财年</div>
-    <div><b>${fmt(rev)}</b>亿元营收合计</div>`;
+    <div><b>${fmt(rev)}</b>亿元营收合计</div>`
+    + (noVal ? `<div class="statwarn" title="这些公司的估值分位尚未取到，详情页会整块隐藏">${noVal} 家待补估值</div>` : "");
 })();
 
 /* 行业筛选 */

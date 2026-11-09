@@ -11,8 +11,14 @@ d = json.load(open(P, encoding="utf-8"))
 BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_new1.json", "batch_new2.json", "batch_new3.json",
            "batch_new4.json", "batch_new5.json", "batch_new6.json",
-           "batch_new7.json", "batch_new8.json"]
-NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e"]
+           "batch_new7.json", "batch_new8.json",
+           "batch_v6_1.json", "batch_v6_2.json", "batch_v6_3.json", "batch_v6_4.json",
+           "batch_v6_5.json", "batch_v6_6.json", "batch_v6_7.json"]
+NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
+                "narr_i", "narr_j"]
+
+BANK_METRICS = ["净息差", "不良率", "成本收入比", "拨备覆盖率", "加权ROE"]
+INS_METRICS = ["新业务价值", "内含价值", "NBV率"]
 
 narr = {}
 for m in NARR_MODULES:
@@ -58,6 +64,21 @@ for code, c in raw.items():
                    "gm": None if y["gm"] is None else round(y["gm"], 2)} for y in years],
         "note": n["note"],
     }
+    # 银行/保险的专用指标随条目一起带入（模板据此切换表格列）。
+    # 模板只认 type=="bank" / 其它，非银组回传的 "ins" 必须归一为 "insurance"，
+    # metrics 也按 type 补齐——否则会被当成保险渲染出满屏 undefined。
+    if c.get("financial"):
+        fin = dict(c["financial"])
+        if fin.get("type") == "ins":
+            fin["type"] = "insurance"
+        fin.setdefault("metrics", BANK_METRICS if fin.get("type") == "bank" else INS_METRICS)
+        entry["financial"] = fin
+    # 保留已算好的估值（merge_valuation.py 的产物）。否则每次扩量重跑本脚本，
+    # 已有公司的估值分位都会被抹掉，得重跑一遍估值合并才能恢复。
+    _old = next((x for x in d["companies"] if x["code"] == code), None)
+    if _old and _old.get("valuation"):
+        entry["valuation"] = _old["valuation"]
+
     d["companies"] = [x for x in d["companies"] if x["code"] != code]
     d["companies"].append(entry)
     added.append(code)
@@ -68,6 +89,15 @@ d["meta"]["batch"] = "v2 · %d 家 · 2026-11" % len(d["companies"])
 with io.open(P, "w", encoding="utf-8") as f:
     json.dump(d, f, ensure_ascii=False, indent=2)
     f.write("\n")
+
+# 叙事骨架（tmp/mk_narr_skeleton.py 生成）会留下空字符串占位。
+# 这类条目不拦下来，页面会出现「引擎描述空白、flags 空数组」的半成品，
+# 而且 validate.py 只查数据不查叙事，很容易漏过去。
+blank = [c["code"] + c["name"] for c in d["companies"]
+         if not c.get("verdict") or not c.get("engine", {}).get("desc")]
+if blank:
+    print("[FAIL] %d 家叙事未完成：%s" % (len(blank), " ".join(blank)))
+    sys.exit(1)
 
 print("新增:", len(added), added)
 print("跳过(无叙事):", len(skipped), skipped)

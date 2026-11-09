@@ -136,9 +136,10 @@ def main() -> int:
     payload = json.loads(DATA.read_text(encoding="utf-8"))
     by_code = {c["code"]: c for c in payload["companies"]}
 
-    files = sorted(VAL_DIR.glob("g*.json"))
+    # v6c 批次文件名形如 v6c_g3.json / v6c_s56.json，需与早期 g*.json 一并纳入
+    files = sorted(set(VAL_DIR.glob("g*.json")) | set(VAL_DIR.glob("v6c_*.json")))
     if not files:
-        print(f"[ERROR] {VAL_DIR} 下没有 g*.json")
+        print(f"[ERROR] {VAL_DIR} 下没有 g*.json / v6c_*.json")
         return 1
 
     merged, warns = {}, []
@@ -191,6 +192,12 @@ def main() -> int:
         "pct_method": "百分位法（严格小于当前值的样本占比，min=0 / max=100）",
         "pe_rule": "PE<=0 的样本剔除出分位池；当前 PE<=0 时不计算 PE 分位",
     }
+    # 未覆盖的公司在页面上是「估值分位」整块消失，不是显示为空——
+    # 扩量后如果忘了补取数，读者只会以为这家公司没估值数据。
+    # 所以在 meta 里显式记下名单，页面顶部据此提示。
+    payload["meta"]["valuation_missing"] = sorted(
+        c["code"] for c in payload["companies"] if not c.get("valuation")
+    )
     DATA.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"[OK] 写入 {DATA}")
     return 0
