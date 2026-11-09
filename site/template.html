@@ -148,6 +148,7 @@ td.neg{color:var(--accent)}
 .chart .legend{display:flex;gap:18px;font-size:10.5px;color:var(--ink-3);padding:6px 2px 2px;font-family:var(--mono)}
 .chart .legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px}
 .chart .legend .legend-note{color:var(--ink-4);margin-left:auto}
+.chart .legend .clip-note{color:var(--accent);margin-left:auto;font-size:10px}
 
 /* 横切面 */
 .xs-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
@@ -297,18 +298,23 @@ $("#q").oninput = e => { state.q = e.target.value; renderList(); };
 /* 图表：营收柱 + 净利线 */
 function chart(c){
   const ys = c.years;
-  const W = 720, H = 260, P = {l:46, r:14, t:14, b:26};
+  const W = 720, H = 260, P = {l:46, r:44, t:14, b:26};
   const iw = W-P.l-P.r, ih = H-P.t-P.b;
   const maxRev = Math.max(...ys.map(d=>d.rev), 1);
-  const maxNp = Math.max(...ys.map(d=>Math.abs(d.np)), 1);
+
   const maxY = maxRev;
   const bw = iw/ys.length;
   const x = i => P.l + bw*i;
-  const yR = v => P.t + ih - (v/maxY)*ih;
-  const zero = P.t + ih - (0)*ih;
+  // 零轴不贴底：上方 62% 留给营收柱与正净利，下方 38% 留给负净利，
+  // 否则亏损年份的净利点会画到画布外被裁掉（美团 2021/2025、京东 2021 都踩过这个坑）。
+  // 若样本从未亏损（如腾讯 22 年、茅台），则压缩负区间为 0，让柱子用满整个高度。
+  const hasNeg = ys.some(d=>d.np < 0);
+  const UP = hasNeg ? 0.62 : 1.0, DOWN = hasNeg ? 0.38 : 0;
+  const zero = P.t + ih*UP;
+  const yR = v => zero - (v/maxY)*ih*UP;
 
   let g = "";
-  // 网格
+  // 网格（营收刻度，从零轴向上）
   for(let k=0;k<=4;k++){
     const v = maxY*k/4, yy = yR(v);
     g += `<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="#e4ded1" stroke-width="1"/>`;
@@ -320,15 +326,40 @@ function chart(c){
     g += `<rect x="${x(i)+bw*0.18}" y="${yR(d.rev)}" width="${bw*0.64}" height="${h}" fill="#e0d6c6"/>`;
   });
   // 净利线（按自身量级缩放，避免被营收压平）
-  const pts = ys.map((d,i)=>{
-    const yy = P.t + ih - (d.np/maxNp)*ih*0.62;
-    return [x(i)+bw/2, yy];
-  });
+  // 定标池排除「非经营性极值」（years[].flag === "nonop"），如美团 2018 年 -1154.77 亿含
+  // 优先股公允价值变动约 1046 亿——它不是经营结果，若参与定标会把其余年份压成直线，
+  // 读者会误以为「美团常年微利、波动很小」。
+  // 注意：只排除显式标记的年份。京东方 2021 年 258 亿、荣盛 2021 年 128 亿这类
+  // 真实的周期高点必须正常显示，交给算法按统计规则去猜（P90/IQR）反而会误截断。
+  const nonop = new Set(ys.filter(d=>d.flag === "nonop").map(d=>d.y));
+  const pool = ys.filter(d=>!nonop.has(d.y)).map(d=>Math.abs(d.np));
+  const maxNp = Math.max(...pool, 1);
+  const yNp = v => {
+    const t = Math.max(-1, Math.min(1, v/maxNp));
+    return t >= 0 ? zero - t*ih*UP : zero + (-t)*ih*DOWN;
+  };
+  const pts = ys.map((d,i)=> [x(i)+bw/2, yNp(d.np)]);
   g += `<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#b4471f" stroke-width="2"/>`;
   pts.forEach((p,i)=>{
     const d = ys[i];
-    g += `<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="${d.np<0?'#b4471f':'#faf8f4'}" stroke="#b4471f" stroke-width="1.6"><title>${d.y} 净利 ${fmt(d.np,1)} 亿元</title></circle>`;
+    const clipped = Math.abs(d.np) > maxNp * 1.001;
+    if(clipped){
+      // 超界：三角标记，方向指示真实值在界外
+      const dir = d.np < 0 ? 1 : -1;
+      g += `<path d="M${p[0]},${p[1]+dir*5} L${p[0]-4.5},${p[1]-dir*3} L${p[0]+4.5},${p[1]-dir*3} Z" fill="#b4471f"><title>${d.y} 净利 ${fmt(d.np,1)} 亿元（超出坐标范围，已截断显示）</title></path>`;
+    } else {
+      g += `<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="${d.np<0?'#b4471f':'#faf8f4'}" stroke="#b4471f" stroke-width="1.6"><title>${d.y} 净利 ${fmt(d.np,1)} 亿元</title></circle>`;
+    }
   });
+  // 右侧净利刻度：净利线按自身量级缩放（否则会被营收压平），必须给出独立刻度，
+  // 否则读者会把「2024 年净利点高于营收柱顶」误读成利润大于营收。
+  const npTicks = hasNeg
+    ? [[maxNp, zero - ih*UP], [0, zero], [-maxNp, zero + ih*DOWN]]
+    : [[maxNp, zero - ih*UP], [0, zero]];
+  npTicks.forEach(([v,yy])=>{
+    g += `<text x="${W-P.r+7}" y="${yy+3.5}" text-anchor="start" font-size="8.5" fill="#b4471f" font-family="ui-monospace,monospace">${Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':Math.round(v)}</text>`;
+  });
+  g += `<text x="${W-P.r+7}" y="${P.t-2}" text-anchor="start" font-size="8.5" fill="#b4471f" font-family="ui-monospace,monospace" letter-spacing="1">净利</text>`;
   // x 轴
   const step = ys.length > 18 ? Math.ceil(ys.length/9) : (ys.length>10?2:1);
   ys.forEach((d,i)=>{
@@ -337,7 +368,13 @@ function chart(c){
     }
   });
   g += `<line x1="${P.l}" y1="${zero}" x2="${W-P.r}" y2="${zero}" stroke="#d2cab9" stroke-width="1"/>`;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${c.name}营收与净利润">${g}</svg>`;
+  // 若有被截断的年份，说明放在图例区（放在 svg 内会压住网格与左上角刻度）
+  const clippedYears = ys.filter(d=>Math.abs(d.np) > maxNp*1.001).map(d=>d.y);
+  const clipNote = clippedYears.length
+    ? `<span class="clip-note">▲▼ ${clippedYears.join('/')} 年净利超出坐标范围，已截断显示</span>`
+    : "";
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${c.name}营收与净利润">${g}</svg>
+    <div class="legend"><span><i style="background:#e0d6c6"></i>营业收入（亿元）</span><span><i style="background:var(--accent)"></i>归母净利润（按自身量级缩放）</span>${clipNote}</div></div>`;
 }
 
 /* 公司级别指标 */
@@ -582,9 +619,7 @@ function renderDetail(){
 
     <div class="block">
       <h3>上市以来：营收（柱）与归母净利（线）</h3>
-      <div class="chart">${chart(c)}
-        <div class="legend"><span><i style="background:#e0d6c6"></i>营业收入（亿元）</span><span><i style="background:var(--accent)"></i>归母净利润（按自身量级缩放）</span></div>
-      </div>
+      ${chart(c)}
     </div>
 
     <div class="block">
