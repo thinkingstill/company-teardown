@@ -252,7 +252,11 @@ A 股现有 5,000 余家上市公司。**这不是全市场扫描，是一个可
 │   ├── build_site.py       # 注入数据 → 生成 index.html + 拆分文件
 │   ├── validate.py         # schema / 年份连续性 / 口径 / 文本质量校验
 │   ├── merge_v2.py         # 合并批量取数 JSON 与叙事，生成主数据源
-│   ├── narr_a/b/c.py       # 分批写的公司判断（引擎、护城河、付费方、变迁、红旗）
+│   ├── merge_valuation.py  # 估值分位（十年窗口 + PB 归母口径）合并与缝合
+│   ├── narr_a…j.py         # 分批写的公司判断（引擎、护城河、付费方、变迁、红旗）
+│   ├── fetch_fin.py        # 财务表格原文 → batch json（列序/单位/季报过滤）
+│   ├── factsheet.py        # 判词事实卡：把叙事里的数字从数据重算一遍
+│   ├── test_fetch.py       # 解析器回归用例（14 条，CI 必跑）
 │   └── push_to_github.sh   # 一键推送（含建仓失败的可执行提示）
 ├── tmp/                    # 子任务批量取数产出的中间 JSON（不进主数据源）
 ├── docs/
@@ -267,12 +271,16 @@ A 股现有 5,000 余家上市公司。**这不是全市场扫描，是一个可
 ## 本地运行
 
 ```bash
-python3 scripts/validate.py      # 先校验数据
-python3 scripts/build_site.py    # 再生成站点
-open index.html                  # 或直接双击
+python3 scripts/test_fetch.py    # 解析器回归（14 条用例）
+python3 scripts/validate.py      # schema / 年份连续性 / 口径 / 文本质量
+python3 scripts/factsheet.py     # 全量事实卡表：营收倍数、CAGR、毛利率区间、亏损年
+python3 scripts/factsheet.py 600519.SH   # 单家完整事实卡
+python3 scripts/build_site.py    # 生成 index.html
 ```
 
-无第三方依赖，只用 Python 标准库。
+无第三方依赖，只用 Python 标准库。`factsheet.py` 不是装饰——任何写进 verdict / flags 的
+「多少倍」「CAGR 多少」「毛利率区间」都应该先从这里取数，而不是凭印象写，理由见
+`docs/data-notes.md` 第十七节。
 
 ---
 
