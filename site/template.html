@@ -135,6 +135,10 @@ td.neg{color:var(--accent)}
 .cmp-table tr:hover td{background:var(--paper-2)}
 .cmp-table tr.sel td{background:var(--accent-soft)}
 .cmp-note{font-size:11.5px;color:var(--ink-3);margin-top:12px;line-height:1.8}
+.filterlab{font-size:10px;letter-spacing:.1em;color:var(--ink-4);text-transform:uppercase;margin:2px 0 6px 2px}
+.cmp-scope{font-size:11.5px;color:var(--ink-3);margin:-4px 0 12px;line-height:1.75;
+  padding-left:10px;border-left:2px solid var(--paper-3)}
+.cmp-scope b{color:var(--ink-2);font-weight:600}
 
 /* 估值分位 */
 .pctgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:20px}
@@ -210,6 +214,8 @@ td.neg{color:var(--accent)}
   <aside class="side">
     <div class="search"><input id="q" type="text" placeholder="搜索公司名 / 代码 / 行业"></div>
     <div class="filters" id="filters"></div>
+    <div class="filterlab" id="sw2Head" style="display:none">申万二级</div>
+    <div class="filters" id="sw2Filters" style="margin-top:-8px;display:none"></div>
     <div class="filters" id="engFilters" style="margin-top:-8px"></div>
     <div class="clist" id="clist"></div>
   </aside>
@@ -223,7 +229,7 @@ const META = __META_JSON__;
 const $ = (s) => document.querySelector(s);
 const fmt = (x, d=0) => (x==null || isNaN(x)) ? "—" : x.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d});
 
-let state = { q:"", ind:"全部", eng:"全部", code: DATA.companies[0]?.code, mode:"company" };
+let state = { q:"", ind:"全部", sw2:"全部", eng:"全部", code: DATA.companies[0]?.code, mode:"company" };
 
 /* 顶栏统计 */
 (function(){
@@ -253,6 +259,43 @@ let state = { q:"", ind:"全部", eng:"全部", code: DATA.companies[0]?.code, m
     const b = e.target.closest(".chip"); if(!b) return;
     state.ind = b.dataset.i;
     document.querySelectorAll("#filters .chip").forEach(x=>x.classList.toggle("on", x===b));
+    renderSw2Chips();
+    renderList();
+  };
+})();
+
+/* 申万二级筛选：与一级行业联动。
+   一级选「全部」时二级类目多达 87 个，会占满侧栏，因此默认折叠；
+   选定某个一级行业后自动展开并只列该行业下的二级类目。 */
+function renderSw2Chips(){
+  const cs = DATA.companies;
+  const scoped = state.ind !== "全部";
+  const pool = scoped ? cs.filter(c=>c.industry===state.ind) : [];
+  const pairs = [...new Map(pool.filter(c=>c.sw2).map(c=>[c.sw2, c])).values()]
+    .sort((a,b)=>(a.sw2_code||"").localeCompare(b.sw2_code||""));
+  const box = $("#sw2Filters");
+  const head = $("#sw2Head");
+  if(!scoped){
+    state.sw2 = "全部";
+    box.style.display = "none";
+    box.innerHTML = "";
+    if(head) head.style.display = "none";
+    return;
+  }
+  if(state.sw2 !== "全部" && !pairs.some(c=>c.sw2===state.sw2)) state.sw2 = "全部";
+  box.style.display = "";
+  if(head) head.style.display = "";
+  box.innerHTML = ["全部", ...pairs.map(c=>c.sw2)]
+    .map(x=>`<button class="chip${x===state.sw2?' on':''}" data-s="${x}">${x}</button>`).join("");
+}
+
+/* 申万二级筛选的点击与初始化 */
+(function(){
+  renderSw2Chips();
+  $("#sw2Filters").onclick = e => {
+    const b = e.target.closest(".chip"); if(!b) return;
+    state.sw2 = b.dataset.s;
+    document.querySelectorAll("#sw2Filters .chip").forEach(x=>x.classList.toggle("on", x===b));
     renderList();
   };
 })();
@@ -282,9 +325,10 @@ let state = { q:"", ind:"全部", eng:"全部", code: DATA.companies[0]?.code, m
 function match(c){
   const q = state.q.trim().toLowerCase();
   const okInd = state.ind === "全部" || c.industry === state.ind;
+  const okSw2 = !state.sw2 || state.sw2 === "全部" || c.sw2 === state.sw2;
   const okEng = state.eng === "全部" || engineTag(c).includes(state.eng);
-  const okQ = !q || (c.name+c.code+c.industry+(c.sub||"")+c.verdict).toLowerCase().includes(q);
-  return okInd && okEng && okQ;
+  const okQ = !q || (c.name+c.code+c.industry+(c.sub||"")+(c.sw2||"")+c.verdict).toLowerCase().includes(q);
+  return okInd && okSw2 && okEng && okQ;
 }
 
 function renderList(){
@@ -597,12 +641,27 @@ function renderDetail(){
     return `<li class="${ok?'ok':''}">${ok?f.slice(1):f}</li>`;
   }).join("");
 
-  const peers = DATA.companies.filter(x=>x.industry===c.industry);
-  const cmpHtml = peers.length>=2 ? `
+  // 同赛道按申万二级分组：只有真正同一门生意才值得横向比
+  // 单一公司的二级类目没有可比对象，回退到申万一级并说明原因
+  const peers2 = DATA.companies.filter(x=>x.sw2 && x.sw2===c.sw2);
+  const peers1 = DATA.companies.filter(x=>x.industry===c.industry);
+  let cmpHtml = "";
+  if(c.sw2 && peers2.length>=2){
+    const isL2 = peers2.length < peers1.length;
+    cmpHtml = `
     <div class="block">
-      <h3>同赛道横比（${c.industry} · ${peers.length} 家）</h3>
-      ${cmpTable(c, peers)}
-    </div>` : "";
+      <h3>同赛道横比（${c.sw2} · ${peers2.length} 家）</h3>
+      <div class="cmp-scope">申万二级 <b>${c.sw2_code||''} ${c.sw2}</b>${isL2?`；同一 <b>${c.industry}</b> 一级下还有 ${peers1.length-peers2.length} 家属于其他二级类目，不在本表`:"；本行业全部样本均在表内"}</div>
+      ${cmpTable(c, peers2)}
+    </div>`;
+  } else if(peers1.length>=2){
+    cmpHtml = `
+    <div class="block">
+      <h3>同赛道横比（${c.industry} · ${peers1.length} 家）</h3>
+      <div class="cmp-scope">申万二级 <b>${c.sw2||"—"}</b> 只有本家，无可比对象，此处回退到申万一级列示其余 ${peers1.length} 家；<b>跨二级的毛利率与增速不能直接比</b>，仅作规模参照，差异请看下方引擎归因。</div>
+      ${cmpTable(c, peers1)}
+    </div>`;
+  }
 
   $("#detail").innerHTML = `
     <div class="dhead">

@@ -74,6 +74,12 @@ def main() -> int:
         if len(c.get("verdict", "")) < 30:
             warns.append(f"{tag} 结论过短，可能不构成判断")
 
+        # 申万二级：新增公司必须打标，否则横比会静默退化到一级行业
+        if not c.get("sw2") or not c.get("sw2_code"):
+            errors.append(f"{tag} 缺少 sw2 / sw2_code（先跑 scripts/tag_sw2.py）")
+        elif c.get("sw1") and c["sw1"] != c["industry"]:
+            errors.append(f"{tag} sw1({c['sw1']}) 与 industry({c['industry']}) 不一致")
+
         # 估值：结构、分位区间、负 PE 一致性
         v = c.get("valuation")
         if v:
