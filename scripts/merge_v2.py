@@ -13,9 +13,10 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_new4.json", "batch_new5.json", "batch_new6.json",
            "batch_new7.json", "batch_new8.json",
            "batch_v6_1.json", "batch_v6_2.json", "batch_v6_3.json", "batch_v6_4.json",
-           "batch_v6_5.json", "batch_v6_6.json", "batch_v6_7.json"]
+           "batch_v6_5.json", "batch_v6_6.json", "batch_v6_7.json",
+           "batch_v8_中药.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
-                "narr_i", "narr_j"]
+                "narr_i", "narr_j", "narr_v8"]
 
 BANK_METRICS = ["净息差", "不良率", "成本收入比", "拨备覆盖率", "加权ROE"]
 INS_METRICS = ["新业务价值", "内含价值", "NBV率"]
@@ -78,6 +79,12 @@ for code, c in raw.items():
     _old = next((x for x in d["companies"] if x["code"] == code), None)
     if _old and _old.get("valuation"):
         entry["valuation"] = _old["valuation"]
+    # 保留 v7a 打的申万二级标签（sw1/sw2/sw2_code）。merge 重建条目时若不继承，
+    # 会把 tag_sw2.py 的产物抹掉，validate 会报「缺少 sw2」。
+    if _old and _old.get("sw2"):
+        entry["sw1"] = _old.get("sw1", n["industry"])
+        entry["sw2"] = _old["sw2"]
+        entry["sw2_code"] = _old["sw2_code"]
 
     d["companies"] = [x for x in d["companies"] if x["code"] != code]
     d["companies"].append(entry)

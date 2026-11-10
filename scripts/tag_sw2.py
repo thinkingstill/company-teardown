@@ -31,7 +31,7 @@ SW2 = {
     "3403": ("调味品", ["603288.SH"]),
 
     # ── 医药生物 ──────────────────────────────────────────
-    "3501": ("中药", ["000538.SZ"]),
+    "3501": ("中药", ["000538.SZ", "600436.SH", "600085.SH", "000999.SZ"]),
     "3502": ("化学制药", ["600276.SH"]),
     "3503": ("医疗器械", ["300760.SZ"]),
     "3504": ("医疗服务", ["300015.SZ"]),
@@ -239,7 +239,7 @@ def main() -> int:
     if check_only:
         print("[CHECK] 未写文件")
         return 0
-    DATA.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    DATA.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"[OK] 写入 {DATA}")
     return 0
 

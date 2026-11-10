@@ -242,6 +242,22 @@ def t_narrative_wrong_multiple():
     assert any("营收" in x and "倍" in x for x in f["checks"]), f["checks"]
 
 
+@case("表头写元、单元格写亿：以单元格后缀为准")
+def t_header_unit_mismatch():
+    # ifind 实际返回形态：表头标注「（单位：元）」，单元格却写「21.5863亿」。
+    # 若按表头的「元」换算，21.5863 × 1e-8 = 0.0 亿，静默失真。
+    text = """| 证券代码 | 日期 | 归属于母公司所有者的净利润（单位：元） | 营业总收入（单位：元） | 销售毛利率（单位：%） |
+|---|---|---|---|---|---|
+| 600436.SH | 20251231 | 21.5863亿 | 90.0141亿 | 36.4266 |
+| 600436.SH | 20241231 | 29.77亿 | 107.8786亿 | 42.7353 |
+"""
+    comps, warns = parse(text)
+    yrs = comps["600436.SH"]["years"]
+    assert yrs[1]["y"] == 2025 and abs(yrs[1]["np"] - 21.59) < 0.01, yrs[1]
+    assert abs(yrs[1]["rev"] - 90.01) < 0.01, yrs[1]
+    assert abs(yrs[1]["gm"] - 36.43) < 0.01, yrs[1]
+
+
 @case("叙事自检：带区间的倍数按区间算，不与全区间比")
 def t_narrative_range():
     c = {

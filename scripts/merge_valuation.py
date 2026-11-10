@@ -265,7 +265,7 @@ def main() -> int:
     payload["meta"]["valuation_missing"] = sorted(
         c["code"] for c in payload["companies"] if not c.get("valuation")
     )
-    DATA.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    DATA.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"[OK] 写入 {DATA}")
     return 0
 

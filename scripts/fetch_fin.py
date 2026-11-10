@@ -85,16 +85,27 @@ def norm_header(cells_):
 
 def parse_number(v):
     """'1,234.56' → 1234.56；'--' / '' / '亏损' → None。"""
+    r = parse_number_with_unit(v)
+    return r[0] if r else None
+
+
+def parse_number_with_unit(v):
+    """'1,234.56' → (1234.56, None)；'21.59亿' → (21.59, '亿')；'--' → None。
+
+    返回 (数值, 单元格自带单位后缀)。ifind 有个坑：表头写「（单位：元）」，
+    单元格却写「21.5863亿」——表头单位与实际数据单位不一致。这种情况下必须以
+    单元格的「亿」后缀为准，否则按表头的「元」换算会把 21 亿压成 0.0 亿（静默失真）。
+    """
     if v is None:
         return None
     s = str(v).strip().replace(",", "").replace("，", "")
     if not s or s in {"--", "-", "—", "N/A", "nan", "null", "None"}:
         return None
-    m = re.match(r"^(-?[\d.]+)\s*(万亿|亿|万)?(元)?$", s)
+    m = re.match(r"^(-?[\d.]+)\s*(万亿元|万亿|亿元|亿|万元|万|千元|元)?$", s)
     if not m:
         return None
     try:
-        return float(m.group(1))
+        return float(m.group(1)), m.group(2)
     except ValueError:
         return None
 
@@ -165,6 +176,20 @@ def blocks(text):
     return blocks
 
 
+def resolve_unit(cell_unit, header):
+    """决定一条数值最终按什么单位换算成亿元。
+
+    - 单元格自带「亿/万」后缀（如「21.5863亿」）优先：ifind 的表头常写「（单位：元）」
+      但单元格值却带「亿」字，表头单位与实际数据不一致。以单元格后缀为准。
+    - 单元格无后缀时，退回表头单位。
+    """
+    if cell_unit:
+        for u in ("万亿元", "亿元", "万元", "千元", "元", "万亿", "亿", "万"):
+            if cell_unit == u:
+                return u
+    return detect_unit(header)
+
+
 def gather(text):
     """从全部表格块里收集 (code, year) → {rev, np, gm}，以及单位告警。"""
     out, warns = {}, []
@@ -225,13 +250,13 @@ def gather(text):
 
             rec = out.setdefault((code, year), {})
             if ni is not None and ni < len(row):
-                v = parse_number(row[ni])
-                if v is not None:
-                    u = detect_unit(raw_hdr[ni])
+                r = parse_number_with_unit(row[ni])
+                if r is not None:
+                    u = resolve_unit(r[1], raw_hdr[ni])
                     if u is None:
                         unknown_units.add(raw_hdr[ni])
                         u = "元"
-                    rec["np"] = round(v * UNIT[u], 2)
+                    rec["np"] = round(r[0] * UNIT[u], 2)
             if gi is not None and gi < len(row):
                 v = parse_number(row[gi])
                 if v is not None:
@@ -242,13 +267,13 @@ def gather(text):
                     rec["gm"] = v
                     gm_raw.append(abs(v))
             if ri is not None and ri < len(row):
-                v = parse_number(row[ri])
-                if v is not None:
-                    u = detect_unit(raw_hdr[ri])
+                r = parse_number_with_unit(row[ri])
+                if r is not None:
+                    u = resolve_unit(r[1], raw_hdr[ri])
                     if u is None:
                         unknown_units.add(raw_hdr[ri])
                         u = "元"
-                    v = v * UNIT[u]
+                    v = r[0] * UNIT[u]
                     # 同一 (代码, 年份) 可能被多个块覆盖：一块给「营业总收入」、
                     # 另一块只给「营业收入」。用营业总收入覆盖营业收入，反过来不覆盖——
                     # 否则后到的低口径值会把已经正确的营业总收入顶掉，净利却还是总收入口径的，
