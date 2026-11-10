@@ -22,7 +22,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> int:
     files = sorted(set(glob.glob(str(ROOT / "tmp/val/g*.json")))
-                   | set(glob.glob(str(ROOT / "tmp/val/v6c_*.json"))))
+                   | set(glob.glob(str(ROOT / "tmp/val/v6c_*.json")))
+                   | set(glob.glob(str(ROOT / "tmp/val10/v10_*.json"))))
     issues, covered = [], {}
     for f in files:
         try:
@@ -52,6 +53,22 @@ def main() -> int:
                     ratio = max(pa, pb_) / min(pa, pb_)
                     if ratio > 20:
                         issues.append(f"{code} {name}: PE {a['y']}→{b['y']} 跳变 {pa}→{pb_}（{ratio:.0f}x）")
+            # PB 跳变与冻结：v6d 那批坏值的真正特征是「突变后冻结」——
+            # 晨鸣 20251231=0.8398 → 20260101=15.5359，此后恒定不变。
+            # 单纯看跳变幅度会误报：宁德 2022→2023 PB 11.98→3.82、比亚迪 2019→2020
+            # 2.29→8.87，都是真实的股价与净资产变化。故拆成两条独立判据。
+            for a, b in zip(rows, rows[1:]):
+                xa, xb = a.get("pb"), b.get("pb")
+                if xa and xb and xa > 0 and xb > 0:
+                    ratio = max(xa, xb) / min(xa, xb)
+                    if ratio > 8:
+                        issues.append(
+                            f"{code} {name}: PB {a['y']}→{b['y']} 跳变 {xa}→{xb}（{ratio:.1f}x）")
+            pb_seq = [r.get("pb") for r in rows if r.get("pb") is not None]
+            frozen = [i for i in range(2, len(pb_seq)) if pb_seq[i] == pb_seq[i - 1] == pb_seq[i - 2]]
+            if frozen:
+                issues.append(
+                    f"{code} {name}: PB 连续 3 年完全相同（{pb_seq[frozen[0]]}），疑似基准日切换后冻结的坏值")
 
     n = len(covered)
     print(f"[INFO] 覆盖 {n} 家公司，共 {sum(covered.values())} 行")

@@ -86,6 +86,17 @@ def main() -> int:
             hist = v.get("history") or []
             if len(hist) < 3:
                 warns.append(f"{tag} 估值序列仅 {len(hist)} 个年度")
+            # v7b 窗口拉长后，2016 年前已上市的公司应满 10 个年度末；
+            # 不足说明增量补数没缝合上，属于静默漏数，必须报出来。
+            # 上市年必须用 listed：years 首年是「财报数据首年」，招股书含上市前三年，
+            # 用它会误报欧派（2017 上市但 2016 有财报）这类公司。
+            listed = c.get("listed")
+            try:
+                listed = int(listed) if listed else None
+            except (TypeError, ValueError):
+                listed = None
+            if listed and listed <= 2016 and len(hist) < 10 and hist and hist[-1].get("y") >= 2025:
+                warns.append(f"{tag} 估值窗口仅 {len(hist)} 年（{listed} 年上市，应满 10 年）")
             ys_hist = [d.get("y") for d in hist]
             if ys_hist != sorted(ys_hist):
                 errors.append(f"{tag} 估值序列年份未升序")

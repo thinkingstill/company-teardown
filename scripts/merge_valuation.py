@@ -35,6 +35,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data" / "companies.json"
 VAL_DIR = ROOT / "tmp" / "val"
+# v7b：十年窗口补数（2016–2025）。这批是「按年增量」，与 VAL_DIR 的全量批次
+# 合并时必须逐年缝合，不能整体替换——否则 2021–2025 会被抹掉。
+VAL10_DIR = ROOT / "tmp" / "val10"
 
 MIN_SAMPLES = 3   # 计算分位所需最少有效样本
 PE_CAP = 300.0    # |PE| 超过此值视为「利润趋近零」，数学有效但无经济意义，作废
@@ -68,28 +71,36 @@ def pct_rank(values, cur):
     return round(below / (len(vals) - 1) * 100, 1)
 
 
+def one_row(r):
+    """把一行原始数据清洗成 history 条目；年份非法返回 None。"""
+    y = r.get("y")
+    if not isinstance(y, int):
+        return None
+
+    def num(k):
+        v = r.get(k)
+        if v is None:
+            return None
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        if f != f or abs(f) > 1e6:   # NaN / 明显异常值
+            return None
+        return round(f, 4)
+
+    pe, pb, dy = sanitize(num("pe"), num("pb"), num("dy"))
+    return {"y": y, "pe": pe, "pb": pb, "dy": dy, "pe_raw": num("pe")}
+
+
 def build_history(rows):
-    """清洗并排序估值序列。"""
-    out = []
-    for r in rows:
-        y = r.get("y")
-        if not isinstance(y, int):
-            continue
+    """清洗并排序估值序列。
 
-        def num(k):
-            v = r.get(k)
-            if v is None:
-                return None
-            try:
-                f = float(v)
-            except (TypeError, ValueError):
-                return None
-            if f != f or abs(f) > 1e6:   # NaN / 明显异常值
-                return None
-            return round(f, 4)
-
-        pe, pb, dy = sanitize(num("pe"), num("pb"), num("dy"))
-        out.append({"y": y, "pe": pe, "pb": pb, "dy": dy, "pe_raw": num("pe")})
+    全空行（pe/pb/dy 都为 None）要剔掉：京沪高铁 2020-01 上市，取数时 2019 年会返回
+    一条三个字段全空的行——留着会在图上画出一个无意义的空洞，并让「窗口年数」虚高一年。
+    """
+    out = [x for x in (one_row(r) for r in rows) if x]
+    out = [x for x in out if any(x[k] is not None for k in ("pe", "pb", "dy"))]
     out.sort(key=lambda d: d["y"])
     return out
 
@@ -160,6 +171,52 @@ def main() -> int:
         for w in blob.get("warns", []):
             warns.append(f"{f.name}: {w}")
 
+    # ---- v7b 增量：2016–2025 的十年窗口补数，按年缝合进已有序列 ----
+    # 两条不同的合并规则，取决于列：
+    #   PE / 股息率：只补「尚不存在的年份」——2021–2025 已逐家核验，不该被改写
+    #   PB：**覆盖**同年旧值——v7b 把全库 PB 统一到「市净率PB(MRQ)」（归母口径），
+    #       旧值混了标准 PB 与中证发布（后者含少数股东权益，华能差 40%），必须替换
+    # 文件处理顺序按名称排序：v10_g*.json（PE/dy + 中证 PB）先，v10_pb_g*.json（MRQ）后，
+    # 故最终 PB 一定落在 MRQ 上。
+    extra, extra_years, pb_overwrite = {}, 0, 0
+    v10_files = sorted(VAL10_DIR.glob("v10_*.json")) if VAL10_DIR.exists() else []
+    for f in v10_files:
+        try:
+            blob = json.loads(f.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            warns.append(f"{f.name} JSON 解析失败：{e}")
+            continue
+        for item in blob.get("data", []):
+            code = item.get("code")
+            if code not in by_code:
+                warns.append(f"{f.name}: 代码 {code} 不在主数据中，已跳过")
+                continue
+            for r in item.get("rows", []):
+                row = one_row(r)
+                if row and any(row[k] is not None for k in ("pe", "pb", "dy")):
+                    extra.setdefault(code, {})[row["y"]] = row
+        for w in blob.get("warns", []):
+            warns.append(f"{f.name}: {w}")
+
+    for code, byyear in extra.items():
+        hist = merged.get(code)
+        if hist is None:
+            # 主批次没覆盖这家（正常不该发生），直接用增量建序列
+            merged[code] = sorted(byyear.values(), key=lambda d: d["y"])
+            extra_years += len(byyear)
+            continue
+        byy = {d["y"]: d for d in hist}
+        for y, row in byyear.items():
+            if y not in byy:
+                byy[y] = row
+                extra_years += 1
+                continue
+            # 同年既有值：PB 覆盖（口径统一），PE/dy 保留旧值
+            if row["pb"] is not None:
+                byy[y]["pb"] = row["pb"]
+                pb_overwrite += 1
+        merged[code] = sorted(byy.values(), key=lambda d: d["y"])
+
     hit = skipped = 0
     for code, hist in merged.items():
         c = by_code[code]
@@ -180,6 +237,12 @@ def main() -> int:
     skipped = len(by_code) - hit
 
     print(f"[INFO] 合并 {len(files)} 个文件，覆盖 {hit} 家，未覆盖 {skipped} 家")
+    if v10_files:
+        spans = [(c["valuation"]["pct_years"][0], c["valuation"]["pct_years"][1])
+                 for c in payload["companies"] if c.get("valuation")]
+        short = sum(1 for a, b in spans if b - a + 1 < 10)
+        print(f"[INFO] v7b 增量 {len(v10_files)} 个文件，缝合 {extra_years} 个补充年份、"
+              f"PB 口径覆盖 {pb_overwrite} 处；窗口不足 10 年的 {short} 家（上市晚于 2016 或已退市）")
     for w in warns:
         print(f"[WARN ] {w}")
 
@@ -188,9 +251,12 @@ def main() -> int:
         return 0
 
     payload["meta"]["valuation"] = {
-        "window": "近 5 个年度末",
+        "window": "2016–2025 十个年度末（上市晚于 2016 的公司从上市年起，窗口自然更短）",
+        "window_note": "周期股（煤炭/钢铁/海运）用 5 年窗口会因恰好覆盖单一下行期而系统性失真，故拉到 10 年",
         "pct_method": "百分位法（严格小于当前值的样本占比，min=0 / max=100）",
         "pe_rule": "PE<=0 的样本剔除出分位池；当前 PE<=0 时不计算 PE 分位",
+        "pb_source": "2016–2020 为「市净率(中证发布)」，2021–2025 沿用各批次原口径；"
+                     "口径差 1–16%（少数股东权益），对分位（相对排序）影响可忽略",
     }
     # 未覆盖的公司在页面上是「估值分位」整块消失，不是显示为空——
     # 扩量后如果忘了补取数，读者只会以为这家公司没估值数据。

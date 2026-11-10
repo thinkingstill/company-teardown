@@ -480,7 +480,7 @@ function pctBar(p){
     <div class="scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div></div>`;
 }
 
-/* 估值 5 年走势：PE / PB 双折线
+/* 估值走势：PE / PB 双折线（窗口 10 年，上市晚的公司自然更短）
    两条线各自归一化到自身 min–max，共用画布；标签交替上下错位，避免相近年份标签压字。 */
 function valChart(v){
   const h = v.history || [];
@@ -495,15 +495,27 @@ function valChart(v){
   const x = i => P.l + (n===1 ? iw/2 : iw*i/(n-1));
 
   const series = [];
+  // 负 PE 不参与绘制：亏损年份的 PE 是「分母为负」算出来的，画进图里会把整条
+  // PE 线的纵轴压扁（华能 2021 年 PE = -40.2，其余年份 8–17 全被挤到顶部）。
+  // 缺失年份（停牌、退市前）同理——折线应在缺口处断开，而不是强行连过去。
+  const usable = (d, key) => d[key] != null && !(key === "pe" && d[key] <= 0);
   const draw = (key, color, side) => {
-    const vals = h.map(d=>d[key]).filter(v=>v!=null);
+    const vals = h.filter(d => usable(d, key)).map(d => d[key]);
     if(!vals.length) return;
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const span = (hi-lo) || 1;
     const y = val => P.t + ih - ((val-lo)/span)*ih*0.86 - ih*0.07;
     let pts = [];
-    h.forEach((d,i)=>{ if(d[key]!=null) pts.push([x(i), y(d[key]), d[key], d.y]); });
-    series.push({key, color, side, pts, lo, hi});
+    h.forEach((d,i)=>{ if(usable(d,key)) pts.push([x(i), y(d[key]), d[key], d.y, i]); });
+    // 按原始下标切成连续段：下标断档说明中间年份无有效值，不能连线
+    const segs = [];
+    let cur = [];
+    pts.forEach(pt => {
+      if(cur.length && pt[4] - cur[cur.length-1][4] > 1){ segs.push(cur); cur = []; }
+      cur.push(pt);
+    });
+    if(cur.length) segs.push(cur);
+    series.push({key, color, side, pts, segs, lo, hi});
   };
   draw("pe", "#b4471f", "left");
   draw("pb", "#3d5a80", "right");
@@ -526,24 +538,51 @@ function valChart(v){
   };
   series.forEach(s=>{ g += axisLbl(s); });
 
-  // 折线
+  // 折线（逐段画，缺口处断开）
   series.forEach(s=>{
-    g += `<polyline points="${s.pts.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.segs.forEach(seg=>{
+      if(seg.length < 2) return;
+      g += `<polyline points="${seg.map(p=>p[0]+','+p[1]).join(' ')}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    });
   });
   // 点 + 标签（PE 标签在上，PB 标签在下；首末端点向内收，避免压住坐标轴刻度）
+  // 十年窗口有 10 个点，逐年标注必然碰撞（PE 与 PB 在同一年数值接近时直接叠字）。
+  // 策略：<= 6 个点时标全部中间点；> 6 个点时每条线只标「最高、最低、最近一个完整年」，
+  // 极值比逐年数字更有信息量，且不会糊成一团。
+  const dense = n > 6;
+  const placedTxt = [];                     // 跨线全局避让：PE 与 PB 各自归一化，同年两点可能撞在一起
   series.forEach(s=>{
     const up = s.key === "pe";
     const m = s.pts.length;
+    let keep = null;
+    if(dense){
+      let hi = 0, lo = 0;
+      s.pts.forEach((p, i) => {
+        if(p[2] > s.pts[hi][2]) hi = i;
+        if(p[2] < s.pts[lo][2]) lo = i;
+      });
+      keep = new Set([hi, lo, m - 2]);
+    }
     s.pts.forEach(([cx,cy,val,y],idx)=>{
       const isFirst = idx===0, isLast = idx===m-1;
-      // 首/末点标签一律省略：它们离坐标轴刻度太近，容易压字（数值仍可由轴刻度与浮标读得）
-      const skipLbl = isFirst || isLast;
-      const anchor = isFirst ? "start" : isLast ? "end" : "middle";
-      const dx = isFirst ? -2 : isLast ? 2 : 0;
+      // 圆点每个都画（悬停可读到数值），只有文字标签按上面的策略省略
       g += `<circle cx="${cx}" cy="${cy}" r="3.2" fill="#fff" stroke="${s.color}" stroke-width="1.8"><title>${y} 年 ${s.key.toUpperCase()} ${val}</title></circle>`;
-      if(!skipLbl){
-        g += `<text x="${cx+dx}" y="${cy + (up ? -13 : 18)}" text-anchor="${anchor}" font-size="${FS}" fill="${s.color}" font-family="ui-monospace,monospace" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round" class="ptlbl">${val}</text>`;
-      }
+      const isExtreme = !!(keep && keep.has(idx));
+      // 首末点一般不标（会压住轴刻度），但若它同时是极值就必须标——
+      // 十年窗口里「最低 PE 出现在最后一年」很常见，漏掉等于丢掉最有信息量的那个数
+      if((isFirst || isLast) && !isExtreme) return;
+      if(dense && !isExtreme && !(idx === m - 2)) return;
+      const ty = cy + (up ? -13 : 18);
+      // 标签统一 1 位小数：原始值可能带 4 位小数（8.1756），字宽翻倍直接压住邻点。
+      // 精确值保留在圆点的 <title> 里，悬停可读。
+      const txt = (+val).toFixed(1);
+      const halfW = txt.length * 2.9 + 2;
+      // 按文字实际宽度避让，固定阈值会漏掉「数字长 → 压住邻居」的情况
+      if(placedTxt.some(p => Math.abs(p[0]-cx) < p[2]+halfW+3 && Math.abs(p[1]-ty) < 11)) return;
+      placedTxt.push([cx, ty, halfW]);
+      const anchor = isFirst ? "start" : isLast ? "end" : "middle";
+      const dx = isFirst ? 2 : isLast ? -2 : 0;
+      g += `<text x="${cx+dx}" y="${ty}" text-anchor="${anchor}" font-size="${FS}" fill="${s.color}" font-family="ui-monospace,monospace" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round" class="ptlbl">${txt}</text>`;
     });
   });
   // x 轴
@@ -551,11 +590,11 @@ function valChart(v){
     g += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="${FS}" fill="#b3aea2" font-family="ui-monospace,monospace">${d.y}</text>`;
   });
 
-  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${v.asof} 前五年 PE 与 PB 走势">${g}</svg>
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${v.asof} 起 ${h.length} 个年度末的 PE 与 PB 走势">${g}</svg>
     <div class="legend"><span><i style="background:#b4471f"></i>PE(TTM) 倍（左轴）</span><span><i style="background:#3d5a80"></i>PB 倍（右轴）</span><span class="legend-note">两条线各按自身区间缩放，只比形状不比高低</span></div></div>`;
 }
 
-/* 估值块（时点数值 + 5 年分位 + 走势） */
+/* 估值块（时点数值 + 10 年分位 + 走势） */
 function valuationBlock(c){
   const v = c.valuation;
   if(!v) return "";
@@ -563,7 +602,17 @@ function valuationBlock(c){
   const p = v.pct || {};
   const st = v.pe_state || "ok";
   const loss = st === "loss";
-  const win = (v.pct_years && v.pct_years[0]!==v.pct_years[1]) ? `${v.pct_years[0]}–${v.pct_years[1]}` : "历史窗口";
+  const y0 = v.pct_years ? v.pct_years[0] : null, y1 = v.pct_years ? v.pct_years[1] : null;
+  const nW = h.length;                      // 实际样本年数（中间可能缺年，故不用 y1-y0+1）
+  const win = (y0 && y1 && y0 !== y1) ? `${y0}–${y1}` : "历史窗口";
+  const winFull = (y0 && y1 && y0 !== y1) ? `${y0}–${y1} 共 ${nW} 个年度末` : "历史窗口";
+  // 上市晚于 2016 的公司窗口天然更短，分位可比性要如实说明，不能假装满 10 年。
+  // 上市年必须用 listed 字段：years[0] 是「财报数据起始年」，招股书含上市前三年，
+  // 拿它当上市年会把华熙生物（2019 上市）写成 2016 年上市。
+  const listed = c.listed || ((c.years && c.years.length) ? c.years[0].y : null);
+  const shortWin = (y0 && y1 && nW < 10)
+    ? `该公司 ${listed || "—"} 年上市，估值窗口为 ${y0}–${y1} 共 ${nW} 年，分位可比性弱于满十年的公司。`
+    : "";
 
   const peSub = loss ? "亏损，PE 无意义"
     : st === "void" ? "本年利润趋近零，PE 作废"
@@ -581,8 +630,11 @@ function valuationBlock(c){
   } else if(st === "thin"){
     note = `窗口内只有 <b>${v.pe_valid_n} 个有效正 PE 样本</b>（其余年份亏损或利润趋近零），不足 ${3} 个无法计算分位，此处不给 PE 分位以避免误导。PB 分位 ${p.pb==null?'—':p.pb.toFixed(0)+'%'}（${pctWord(p.pb)}）仍可参考。`;
   } else {
-    note = `分位口径：<b>百分位法</b>，${win} 各年度末取值为样本，0% = 五年最低、100% = 五年最高。当前 PE 处于 ${p.pe==null?'—':p.pe.toFixed(0)+'%'} 分位（${pctWord(p.pe)}）、PB 处于 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} 分位（${pctWord(p.pb)}）。<b>分位低不等于便宜</b>——周期股在盈利顶点时 PE 最低；要结合 PB 与股息率一起看。`;
+    note = `分位口径：<b>百分位法</b>，${winFull}取值为样本，0% = 窗口最低、100% = 窗口最高。当前 PE 处于 ${p.pe==null?'—':p.pe.toFixed(0)+'%'} 分位（${pctWord(p.pe)}）、PB 处于 ${p.pb==null?'—':p.pb.toFixed(0)+'%'} 分位（${pctWord(p.pb)}）。<b>分位低不等于便宜</b>——周期股在盈利顶点时 PE 最低；要结合 PB 与股息率一起看。`;
   }
+  // 窗口不足十年这件事与 PE 状态无关，四个分支都要说，否则短窗口公司在
+  // loss/void/thin 状态下会看起来「和满十年的一样可靠」
+  if(shortWin && !note.includes(shortWin)) note += ` ${shortWin}`;
 
   return `
     <div class="block">
@@ -756,7 +808,7 @@ ${c.financial.years.map(d=> c.financial.type==="bank" ? `| ${d.y} | ${d.nim}% | 
     const p = v.pct || {};
     const st = v.pe_state || "ok";
     const loss = st === "loss";
-    const win = (v.pct_years && v.pct_years[0]!==v.pct_years[1]) ? `${v.pct_years[0]}–${v.pct_years[1]}` : "历史窗口";
+    const win = (v.pct_years && v.pct_years[0]!==v.pct_years[1]) ? `${v.pct_years[0]}–${v.pct_years[1]} 共 ${(v.history||[]).length} 年` : "历史窗口";
     const peShow = loss ? `${v.pe} 倍（亏损，无意义）` : st === "void" ? "本年净利趋近零，PE 作废" : st === "thin" ? `仅 ${v.pe_valid_n} 个有效样本，不算分位` : `${v.pe} 倍`;
     const pcts = `- PE：${peShow}；PB：${v.pb} 倍；股息率 TTM：${v.dy==null?'—':v.dy+'%'}
 - 历史分位（${win}）：PE ${(loss||st==='void'||st==='thin'||p.pe==null)?'不适用':p.pe.toFixed(0)+'%'}、PB ${p.pb==null?'—':p.pb.toFixed(0)+'%'}、股息率 ${p.dy==null?'—':p.dy.toFixed(0)+'%'}`;
