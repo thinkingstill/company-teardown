@@ -14,7 +14,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_new7.json", "batch_new8.json",
            "batch_v6_1.json", "batch_v6_2.json", "batch_v6_3.json", "batch_v6_4.json",
            "batch_v6_5.json", "batch_v6_6.json", "batch_v6_7.json",
-           "batch_v8_中药.json"]
+           "batch_v8_中药.json", "batch_v8_医疗器械.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
