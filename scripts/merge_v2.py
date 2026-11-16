@@ -15,7 +15,8 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v6_1.json", "batch_v6_2.json", "batch_v6_3.json", "batch_v6_4.json",
            "batch_v6_5.json", "batch_v6_6.json", "batch_v6_7.json",
            "batch_v8_中药.json", "batch_v8_医疗器械.json",
-           "batch_v8_调味品.json", "batch_v8_化学制药.json"]
+           "batch_v8_调味品.json", "batch_v8_化学制药.json",
+           "batch_v8_医疗服务.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
@@ -42,6 +43,11 @@ added, skipped = [], []
 # 新批次先跑 fetch_fin 会写成序列首年，故这里用人工核实值覆盖。
 LISTED_FIX = {
     "603317.SH": "2019",   # 天味食品 2019-04-16 上市，招股书披露 2016 年起数据
+    # v8-e 医疗服务：四家眼科连锁 2019–2022 年上市，招股书却披露了 2019/2017 年起的数据
+    "301293.SZ": "2023",   # 三博脑科 2023-05-05
+    "301267.SZ": "2022",   # 华厦眼科 2022-11-07
+    "301103.SZ": "2022",   # 何氏眼科 2022-03-22
+    "301239.SZ": "2022",   # 普瑞眼科 2022-07-05
 }
 _old_map = {x["code"]: x for x in d["companies"]}
 for code, c in raw.items():
