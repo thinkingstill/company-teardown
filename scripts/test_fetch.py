@@ -306,6 +306,40 @@ def t_rev_main_not_override():
     assert y["np"] == 1.13, y["np"]
 
 
+@case("港股 4 位代码不被静默丢弃")
+def t_hk_4digit():
+    """2319.HK 蒙牛：代码是 4 位数字，早期正则只认 6 位 A 股 → 整块被跳过、不报错。
+    这是最危险的一类漏数：批次照样「成功」，只是少了一家公司。"""
+    t = """| 证券代码 | 日期 | 营业收入（单位：亿元） | 销售毛利率（单位：%） | 归母净利润（单位：亿元） |
+|---|---|---|---|---|
+| 2319.HK | 20251231 | 822.4494 | 39.8911 | 15.4535 |
+| 2319.HK | 20241231 | 886.7477 | 39.5721 | 1.0451 |
+"""
+    r, _ = parse(t)
+    assert "2319.HK" in r, f"港股代码被丢弃，实际解析出 {sorted(r)}"
+    ys = r["2319.HK"]["years"]
+    assert len(ys) == 2, [y["y"] for y in ys]
+    # years 按年份升序（2024 在前），不是按表内行序
+    assert ys[0]["y"] == 2024 and ys[1]["y"] == 2025, [y["y"] for y in ys]
+    assert ys[1]["rev"] == 822.45, ys[1]["rev"]
+    assert ys[1]["np"] == 15.45, ys[1]["np"]
+    assert ys[0]["gm"] == 39.5721, ys[0]["gm"]
+
+
+@case("港股 5 位与美股代码都能识别")
+def t_hk_5digit_and_us():
+    t = """| 证券代码 | 日期 | 营业收入（单位：亿元） | 归母净利润（单位：亿元） |
+|---|---|---|---|
+| 09988.HK | 20251231 | 1000.0 | 100.0 |
+| PDD.O | 20251231 | 500.0 | 50.0 |
+"""
+    r, _ = parse(t)
+    assert "09988.HK" in r, sorted(r)
+    assert "PDD.O" in r, sorted(r)
+    assert r["09988.HK"]["years"][0]["rev"] == 1000.0
+    assert r["PDD.O"]["years"][0]["np"] == 50.0
+
+
 def main():
     ok = 0
     for name, fn in CASES:

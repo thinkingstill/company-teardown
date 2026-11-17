@@ -234,10 +234,26 @@ def gather(text):
             if ci >= len(row) or yi >= len(row):
                 continue
             raw_code = row[ci].strip()
-            m = re.match(r"^(\d{6})\.?(SH|SZ|BJ)?$", raw_code, re.I)
+            # A 股 6 位（.SH/.SZ/.BJ）、港股 4–5 位（.HK，如 2319.HK / 0700.HK）、
+            # 美股带 .O/.N 后缀（如 PDD.O）。只认 6 位 A 股会把港股整块静默跳过——
+            # 库里已有 5 家港股（腾讯/京东/小米/美团/阿里），新取数时必须一起支持，
+            # 否则港股批次会「少一家且不报错」，属于最难发现的漏数。
+            m = re.match(r"^(\d{4,6})\.?(SH|SZ|BJ|HK)?$", raw_code, re.I)
             if not m:
-                continue
-            code = m.group(1) + "." + (m.group(2) or guess_market(m.group(1))).upper()
+                # 美股等非数字代码：整体当代码用，不改写
+                if re.match(r"^[A-Za-z][A-Za-z.\-]{0,9}$", raw_code):
+                    code = raw_code.upper()
+                else:
+                    continue
+            else:
+                digits, suf = m.group(1), m.group(2)
+                if suf:
+                    code = digits + "." + suf.upper()
+                elif len(digits) == 6:
+                    code = digits + "." + guess_market(digits).upper()
+                else:
+                    # 4–5 位无后缀默认港股（美股代码不会是纯数字）
+                    code = digits + ".HK"
 
             period = row[yi]
             # 只接受年报口径：报告期写 12-31，或只写了年份。
