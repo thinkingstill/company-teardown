@@ -210,10 +210,14 @@ def gather(text):
             continue
 
         # 指标列：一个块可能同时有营收/净利/毛利率三列，也可能一次只有一列
-        ri = find_col(hdr, "营业总收入", "营业收入")
+        ri = find_col(hdr, "营业总收入", "营业收入-主营业务", "营业收入")
         # 营收优先取营业总收入：券商/银行的「营业收入」剔除了利息净收入，会严重低估。
         # 用三档：先找营业总收入列，没有再退回营业收入列。
+        # 「营业收入-主营业务」剔除了其他业务收入，口径比「营业收入」窄，
+        # 但比它更接近「主业规模」；全库统一取含其他业务的「营业收入」，
+        # 故只在只剩这一列时才退回（优先级低于营业总收入与营业收入）。
         r_is_total = ri is not None and "营业总收入" in hdr[ri]
+        r_is_main = ri is not None and "主营业务" in hdr[ri]
         ni = find_col(hdr, "归母净利润", "归属于母公司所有者的净利润", "净利润")
         gi = find_col(hdr, "销售毛利率", "毛利率")
 
@@ -279,6 +283,10 @@ def gather(text):
                     # 否则后到的低口径值会把已经正确的营业总收入顶掉，净利却还是总收入口径的，
                     # 合计出一个「营收远小于净利」的荒谬行（工行测试里营收被压成 0.0 亿）。
                     if r_is_total or not rec.get("_rev_total"):
+                        # 主营业务口径只有在手头还没有任何营收值时才落下；
+                        # 已有的营收（无论哪种）不被更窄的口径顶掉。
+                        if r_is_main and "rev" in rec:
+                            continue
                         rec["rev"] = round(v, 2)
                         rec["_rev_total"] = bool(r_is_total)
                     if not r_is_total:

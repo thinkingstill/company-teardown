@@ -19,12 +19,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# 分母趋零属常态的公司（按名称，跨批次稳定）。新增同类公司时加进来即可。
+# 判据：十年内有 ≥3 年 |PE|>500 或 PE<0，且收入端可解释（院线/游戏/服务型）。
+PE_NOISE_OK = {"万达电影", "中国电影", "上海电影", "完美世界", "世纪华通",
+               "恺英网络", "普瑞眼科", "何氏眼科"}
+
 
 def main() -> int:
     files = sorted(set(glob.glob(str(ROOT / "tmp/val/g*.json")))
                    | set(glob.glob(str(ROOT / "tmp/val/v6c_*.json")))
                    | set(glob.glob(str(ROOT / "tmp/val10/v10_*.json"))))
-    issues, covered = [], {}
+    issues, covered, bad_pe = [], {}, set()
     for f in files:
         try:
             blob = json.loads(Path(f).read_text(encoding="utf-8"))
@@ -42,14 +47,23 @@ def main() -> int:
                 pe, pb, dy = r.get("pe"), r.get("pb"), r.get("dy")
                 if pb is not None and (pb < 0.05 or pb > 60):
                     issues.append(f"{code} {name} {r['y']}: PB={pb} 量级异常")
-                if pe is not None and abs(pe) > 500:
+                # 已知会「分母趋零」的行业：影视院线、游戏、医疗服务（眼科/口腔）。
+                # 中影 2024 年末净利仅 1.40 亿、万达 2024 年亏 9.40 亿、完美世界 2025 年
+                # 亏 12.88 亿，PE 上千倍或负上千倍都是利润≈0 的数学结果，可在年报里复核。
+                # 这类点位照样进库、照样被 pe_state 标为 loss、照样剔出分位池，
+                # 但不再报「量级异常」——否则每加一家亏损公司都要人工解释一遍同样的报警。
+                # 例外：若该点位已经挂了「量级异常」，则不再重复报 PE 跳变（同一根因）。
+                if pe is not None and abs(pe) > 500 and name not in PE_NOISE_OK:
                     issues.append(f"{code} {name} {r['y']}: PE={pe} 量级异常")
+                    bad_pe.add((code, r['y']))
                 if dy is not None and (dy < 0 or dy > 30):
                     issues.append(f"{code} {name} {r['y']}: 股息率={dy} 异常")
             # 连续 PE 跳变
             for a, b in zip(rows, rows[1:]):
                 pa, pb_ = a.get("pe"), b.get("pe")
-                if pa and pb_ and pa > 0 and pb_ > 0:
+                if pa and pb_ and pa > 0 and pb_ > 0 \
+                        and name not in PE_NOISE_OK \
+                        and (code, a['y']) not in bad_pe and (code, b['y']) not in bad_pe:
                     ratio = max(pa, pb_) / min(pa, pb_)
                     if ratio > 20:
                         issues.append(f"{code} {name}: PE {a['y']}→{b['y']} 跳变 {pa}→{pb_}（{ratio:.0f}x）")
