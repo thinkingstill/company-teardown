@@ -20,6 +20,18 @@ REQUIRED = ["code", "name", "industry", "listed", "coverage", "verdict",
             "engine", "mix", "moat", "payer", "shift", "flags", "years"]
 BANNED = ["致力于", "赋能", "生态闭环", "前景广阔", "持续发力", "行业领先", "公司简介"]
 
+# 估值窗口短于 10 年、但已核明属「清洗剔除」而非「漏数」的公司。
+# 这类公司的年末估值全取到了，只是若干年份的 PB/PE 触到 sanitize 的阈值
+# （PB_CAP=60、PB<=0、|PE|>300）被置空，导致 history 条数少于 10。
+# 报 warn 会掩盖真正的漏数，故豁免；但必须在此写明原因与年份。
+SHORT_HIST_OK = {
+    # 天下秀 2019 年借壳原慧球科技，借壳前壳公司净资产趋零：
+    #   2016 PB 316.94、2017 PB 42.68、2018 PB 38.34、2019 PB -455.83
+    # 其中 2016（PB>60）与 2019（PB<=0）被剔除 → history 仅 9 年。
+    # 2016 行全年只有 PB 被剔，PE 为 -335.89 亦超阈值，故该行整行落空。
+    "600556.SH": "2016/2019 年 PB 触清洗阈值被剔除，非漏数",
+}
+
 
 def main() -> int:
     payload = json.loads(DATA.read_text(encoding="utf-8"))
@@ -95,7 +107,9 @@ def main() -> int:
                 listed = int(listed) if listed else None
             except (TypeError, ValueError):
                 listed = None
-            if listed and listed <= 2016 and len(hist) < 10 and hist and hist[-1].get("y") >= 2025:
+            if (listed and listed <= 2016 and len(hist) < 10 and hist
+                    and hist[-1].get("y") >= 2025
+                    and tag not in SHORT_HIST_OK):
                 warns.append(f"{tag} 估值窗口仅 {len(hist)} 年（{listed} 年上市，应满 10 年）")
             ys_hist = [d.get("y") for d in hist]
             if ys_hist != sorted(ys_hist):
