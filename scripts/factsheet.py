@@ -48,6 +48,8 @@ def band(x, lo=33.3, hi=66.7):
 def facts(c):
     ys = c["years"]
     y0, y1 = ys[0]["y"], ys[-1]["y"]
+    # n 是「间隔年数」，供 CAGR 用（2016→2025 是 9 个间隔，开 9 次方）。
+    # 显示覆盖年数必须用 len(ys)——否则 2016–2025 这 10 个年度会被写成「9 年」。
     n = y1 - y0
     rev0, rev1 = ys[0]["rev"], ys[-1]["rev"]
     np0, np1 = ys[0]["np"], ys[-1]["np"]
@@ -82,7 +84,7 @@ def facts(c):
         "industry": c.get("industry"),
         "sw2": c.get("sw2"),
         "listed": c.get("listed"),
-        "span": [y0, y1, n],
+        "span": [y0, y1, len(ys)],
         "rev": {"from": rev0, "to": rev1,
                 "x": round(rev1 / rev0, 2) if rev0 else None,
                 "cagr": None if cagr(rev0, rev1, n) is None else round(cagr(rev0, rev1, n), 1)},
