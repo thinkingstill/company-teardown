@@ -18,7 +18,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v8_调味品.json", "batch_v8_化学制药.json",
            "batch_v8_医疗服务.json", "batch_v8_游戏.json",
            "batch_v8_影视院线.json", "batch_v8_广告营销.json", "batch_v8_乳制品.json",
-           "batch_v8_钾肥磷化工.json"]
+           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
@@ -59,6 +59,9 @@ LISTED_FIX = {
     # 误标 2016 会让 validate 误报「估值窗口仅 7 年」——实际是 2019 上市，
     # 2016–2018 三年本就没有估值，属正常。
     "002946.SZ": "2019",
+    # v8-k 稀土磁材：金力永磁 2018-09-21 创业板上市，招股书披露 2016 年起数据。
+    # 误标 2016 会让 validate 误报「估值窗口仅 8 年」——实际 2016/2017 两年本就没有估值。
+    "300748.SZ": "2018",
 }
 _old_map = {x["code"]: x for x in d["companies"]}
 for code, c in raw.items():
