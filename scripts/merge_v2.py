@@ -18,7 +18,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v8_调味品.json", "batch_v8_化学制药.json",
            "batch_v8_医疗服务.json", "batch_v8_游戏.json",
            "batch_v8_影视院线.json", "batch_v8_广告营销.json", "batch_v8_乳制品.json",
-           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json", "batch_v8_轨交装备.json", "batch_v8_专业工程与化工工程.json", "batch_v8_银行.json", "batch_v8_纺织制造.json", "batch_v8_消费电子.json", "batch_v8_CXO.json"]
+           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json", "batch_v8_轨交装备.json", "batch_v8_专业工程与化工工程.json", "batch_v8_银行.json", "batch_v8_纺织制造.json", "batch_v8_消费电子.json", "batch_v8_CXO.json", "batch_v8_逆变器.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
@@ -72,6 +72,11 @@ LISTED_FIX = {
     # v8-z CXO：康龙化成 2019-01-28 创业板上市，招股书披露 2016 年起数据。
     # 误标 2016 会让 validate 误报「估值窗口仅 7 年」——实际是 2019 年才上市。
     "300759.SZ": "2019",
+    # v8-aa 逆变器与储能：锦浪科技 2019-03-19 创业板上市，招股书披露 2016 年起数据；
+    # 固德威 2020-09-04 科创板上市，招股书披露 2020 年起数据。
+    # 误标序列首年会让 validate 误报「估值窗口仅 N 年」。
+    "300763.SZ": "2019",
+    "688390.SH": "2020",
 }
 _old_map = {x["code"]: x for x in d["companies"]}
 for code, c in raw.items():
