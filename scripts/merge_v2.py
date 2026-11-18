@@ -18,7 +18,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v8_调味品.json", "batch_v8_化学制药.json",
            "batch_v8_医疗服务.json", "batch_v8_游戏.json",
            "batch_v8_影视院线.json", "batch_v8_广告营销.json", "batch_v8_乳制品.json",
-           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json"]
+           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
