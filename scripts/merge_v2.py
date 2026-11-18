@@ -18,7 +18,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v8_调味品.json", "batch_v8_化学制药.json",
            "batch_v8_医疗服务.json", "batch_v8_游戏.json",
            "batch_v8_影视院线.json", "batch_v8_广告营销.json", "batch_v8_乳制品.json",
-           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json"]
+           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json", "batch_v8_轨交装备.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
@@ -62,6 +62,10 @@ LISTED_FIX = {
     # v8-k 稀土磁材：金力永磁 2018-09-21 创业板上市，招股书披露 2016 年起数据。
     # 误标 2016 会让 validate 误报「估值窗口仅 8 年」——实际 2016/2017 两年本就没有估值。
     "300748.SZ": "2018",
+    # v8-u 轨交装备：时代电气 2021-09-07 科创板上市（此前仅港股 3898.HK），
+    # 招股书披露 2017 年起数据。误标 2017 会让 validate 误报「估值窗口仅 5 年」——
+    # 实际是 2021 年才在 A 股挂牌，2017–2020 本就没有 A 股估值。
+    "688187.SH": "2021",
 }
 _old_map = {x["code"]: x for x in d["companies"]}
 for code, c in raw.items():
