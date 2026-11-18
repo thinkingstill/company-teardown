@@ -41,7 +41,13 @@ PB_NOISE_OK = {
     # 净资产绝对值极小，PB 被放大到 316.94 / 42.68 / 38.34 / -455.83。
     # 2020 年红人资产并表后回落至 7.02 倍，此后 2.43–6.33 倍，属正常区间。
     "天下秀",
+    # 湖北宜化 2016–2017 连亏 63.45 亿（2017 年单年 −50.95 亿，新疆宜化事故停产 + 减值），
+    # 净资产被烧到接近零，PB 因此从 2017 年末 1.0357 跳到 2018 年末 14.6073（14.1x），
+    # 2019 年末达 20.7948。这不是数据错误，是分母塌陷，2022 年起随净资产修复回落至 2–3 倍。
+    "湖北宜化",
 }
+# 注：PB_NOISE_OK 同时豁免「PB 量级异常」与「PB 跳变」两条判据——
+# 两者的根因都是分母（净资产）趋零，豁免一次即可，不必分两张表。
 
 
 def main() -> int:
@@ -94,7 +100,7 @@ def main() -> int:
                 xa, xb = a.get("pb"), b.get("pb")
                 if xa and xb and xa > 0 and xb > 0:
                     ratio = max(xa, xb) / min(xa, xb)
-                    if ratio > 8:
+                    if ratio > 8 and name not in PB_NOISE_OK:
                         issues.append(
                             f"{code} {name}: PB {a['y']}→{b['y']} 跳变 {xa}→{xb}（{ratio:.1f}x）")
             pb_seq = [r.get("pb") for r in rows if r.get("pb") is not None]
