@@ -156,7 +156,10 @@ def textual_checks(c, ys, y0, y1, n, rev0, rev1):
                     issues.append(f"{where}: 称 {ya}–{yb} 营收 {claim} 倍，数据实为 {real:.2f} 倍")
             continue
         m = re.search(r"营收[^。；，]{0,12}?([0-9]+(?:\.[0-9]+)?)\s*倍", t)
-        if m and real_rev_x:
+        # ★ 排除「营收是同组 XX 的 N 倍」这类**跨公司比值**：它的比较基数是别家的营收，
+        #   不是本公司首年营收，用「本公司倍数」去核对必然误报
+        #   （中国建筑「营收是同组中国中冶的 4.6 倍」就被误报成「数据实为 2.17 倍」）。
+        if m and real_rev_x and not re.search(r"营收[^。；，]{0,12}?(是|为|达)[^。；，]{0,10}?(的|同组)", t):
             claim = float(m.group(1))
             # 1 倍起步与「增长 N 倍」两种写法差 1，容忍区间取宽
             if claim >= 1.2 and abs(claim - real_rev_x) / real_rev_x > 0.2 \

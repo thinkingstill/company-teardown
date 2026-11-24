@@ -18,7 +18,7 @@ BATCHES = ["batch1.json", "batch2.json", "batch2b.json", "batch2c.json",
            "batch_v8_调味品.json", "batch_v8_化学制药.json",
            "batch_v8_医疗服务.json", "batch_v8_游戏.json",
            "batch_v8_影视院线.json", "batch_v8_广告营销.json", "batch_v8_乳制品.json",
-           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json", "batch_v8_轨交装备.json", "batch_v8_专业工程与化工工程.json", "batch_v8_银行.json", "batch_v8_纺织制造.json", "batch_v8_消费电子.json", "batch_v8_CXO.json", "batch_v8_逆变器.json", "batch_v8_工业自动化.json", "batch_v8_包装印刷.json", "batch_v8_城商行.json", "batch_v8_聚氨酯.json", "batch_v8_磷肥及磷化工.json", "batch_v8_粮油加工.json", "batch_v8_旅游服务.json"]
+           "batch_v8_钾肥磷化工.json", "batch_v8_稀土磁材.json", "batch_v8_水泥.json", "batch_v8_黄金.json", "batch_v8_铝.json", "batch_v8_焦煤.json", "batch_v8_氮肥.json", "batch_v8_农药.json", "batch_v8_钛白粉.json", "batch_v8_航空机场.json", "batch_v8_燃气.json", "batch_v8_轨交装备.json", "batch_v8_专业工程与化工工程.json", "batch_v8_银行.json", "batch_v8_纺织制造.json", "batch_v8_消费电子.json", "batch_v8_CXO.json", "batch_v8_逆变器.json", "batch_v8_工业自动化.json", "batch_v8_包装印刷.json", "batch_v8_城商行.json", "batch_v8_聚氨酯.json", "batch_v8_磷肥及磷化工.json", "batch_v8_粮油加工.json", "batch_v8_旅游服务.json", "batch_v8_房屋建设.json", "batch_v8_铝2.json"]
 NARR_MODULES = ["narr_a", "narr_b", "narr_c", "narr_d", "narr_e", "narr_f", "narr_g", "narr_h",
                 "narr_i", "narr_j", "narr_v8"]
 
@@ -93,6 +93,12 @@ LISTED_FIX = {
     "002895.SZ": "2017",   # 川恒股份 2017-08-25 深交所主板（招股书披露 2016 起财务，2016 无估值）
     # v8-ag 粮油加工
     "002852.SZ": "2017",   # 道道全 2017-03-10 深交所主板（招股书披露 2016 起财务，2016 无估值）
+    # v8-ai 房屋建设：上海建工 1998-06-18 上交所上市，属长序列公司，取数窗口只取 2016 起
+    "600170.SH": "1998",   # 上海建工 1998-06-18
+    # v8-ai 铝：天山铝业 002532 原名「新界泵业」2010-12-31 上市，
+    # 2020 年才注入电解铝资产。上市年取原始上市时间，
+    # 「业务断点」在叙事与 note 里单独说明，不靠 listed 表达
+    "002532.SZ": "2010",   # 新界泵业 2010-12-31 上市（2020 年重组为天山铝业）
 }
 _old_map = {x["code"]: x for x in d["companies"]}
 for code, c in raw.items():
